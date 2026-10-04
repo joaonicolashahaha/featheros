@@ -1,5 +1,5 @@
 # Live ISO: one image only (no fallback) built with archiso.conf.
 PRESETS=('archiso')
-ALL_kver='/boot/vmlinuz-linux-lts'
+ALL_kver='/boot/vmlinuz-linux-featheros'
 archiso_config='/etc/mkinitcpio.conf.d/archiso.conf'
-archiso_image='/boot/initramfs-linux-lts.img'
+archiso_image='/boot/initramfs-linux-featheros.img'

@@ -1,6 +1,6 @@
 # --- Base system ---
 base
-linux-lts
+linux-featheros
 intel-ucode
 # Only the firmware the target laptop needs: RTL8191SE Wi-Fi, RTL8111 Ethernet.
 linux-firmware-realtek

@@ -4,6 +4,13 @@ set -euo pipefail
 
 pacman -Syu --noconfirm --needed archiso
 
+# Build the kernel package first if the local repo doesn't have the version
+# the PKGBUILD asks for.
+eval "$(grep -E '^(pkgver|pkgrel)=' /src/kernel/linux-featheros/PKGBUILD)"
+if ! compgen -G "/src/repo/x86_64/linux-featheros-$pkgver-$pkgrel-*.pkg.tar.zst" >/dev/null; then
+    bash /src/scripts/build-kernel.sh
+fi
+
 # Rootless containers may not mount devtmpfs, which pacstrap needs. Its
 # unshare mode (-N) bind-mounts device nodes instead; mkarchiso only uses it
 # for non-root users, so force it here.

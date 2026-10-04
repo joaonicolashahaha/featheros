@@ -4,3 +4,5 @@
 /kernel/**/pkg/
 /kernel/**/*.tar.*
 /kernel/**/*.pkg.tar.zst
+/repo/
+/kernel/cache/

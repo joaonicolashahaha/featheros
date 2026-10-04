@@ -1,0 +1,95 @@
+# Modules to keep in addition to hardware/modules.txt (lsmod from the laptop)
+# and kernel/modules-vm.txt (lsmod from the QEMU VM). Same first column as
+# lsmod output; everything after '#' is ignored by kernel-config.sh.
+
+# --- Live ISO boot (not loaded on an installed system, so lsmod misses them)
+squashfs
+loop
+overlay
+isofs
+sr_mod
+cdrom
+sd_mod
+usb_storage
+uas
+ehci_pci
+ehci_hcd
+uhci_hcd
+ohci_pci
+ohci_hcd
+xhci_pci
+xhci_hcd
+dm_mod         # archiso: copy-on-write layer
+dm_snapshot
+
+# --- Filesystems: root fs + what USB sticks/drives commonly use
+ext4
+vfat
+exfat
+ntfs3
+udf
+nls_cp437
+nls_iso8859_1
+nls_utf8
+fuse
+
+# --- Input
+usbhid
+hid_generic
+evdev
+atkbd
+i8042
+psmouse
+mousedev
+
+# --- Laptop / ACPI (Ubuntu builds these in, so its lsmod doesn't list them)
+battery
+ac
+button
+fan
+thermal
+video
+processor
+acpi_cpufreq
+coretemp
+
+# --- zram swap
+zram
+zsmalloc
+lz4_compress
+zstd_compress
+
+# --- Wi-Fi: iwd needs these crypto modules (not in the laptop list because
+#     Ubuntu used wpa_supplicant)
+af_alg
+algif_hash
+algif_skcipher
+algif_aead
+pkcs8_key_parser
+cmac
+md4
+des3_ede_x86_64
+des_generic
+ccm
+gcm
+rfkill
+
+# --- Virtual machines (QEMU/KVM, GNOME Boxes): disks, NICs, GPUs, audio, input
+virtio_pci
+virtio_blk
+virtio_scsi
+virtio_net
+virtio_console
+virtio_balloon
+virtio_input
+virtio_rng
+virtio_gpu
+qxl
+bochs
+ata_piix
+ata_generic
+e1000
+e1000e
+8139cp
+8139too
+snd_intel8x0

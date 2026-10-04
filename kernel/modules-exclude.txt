@@ -1,0 +1,28 @@
+# Modules dropped even though they appear in an lsmod list: they get
+# auto-loaded but serve no purpose on FeatherOS, and each one loaded costs
+# RAM and boot time.
+parport        # no parallel port on the laptop
+parport_pc
+ppdev
+lp
+pcspkr         # PC speaker beeps
+iTCO_wdt       # hardware watchdog (nothing feeds it)
+iTCO_vendor_support
+intel_pmc_bxt
+mac_hid        # Apple keyboard emulation for PowerPC
+joydev         # joysticks
+snd_seq_midi   # MIDI sequencer: not needed for audio playback
+snd_seq_midi_event
+snd_rawmidi
+snd_seq
+snd_seq_device
+snd_hda_codec_si3054   # the laptop's dial-up modem codec
+842_compress   # zram uses zstd; other compressors unused
+842_decompress
+lz4hc_compress
+vsock          # host<->guest sockets (no guest agent shipped)
+vsock_loopback
+vmw_vsock_virtio_transport
+vmw_vsock_virtio_transport_common
+ip_tables      # Ubuntu's ufw firewall; no firewall is configured
+x_tables

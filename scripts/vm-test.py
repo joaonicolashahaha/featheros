@@ -26,6 +26,10 @@ ap.add_argument("--settle", type=int, default=60,
 ap.add_argument("--cmd", action="append", default=[],
                 help="extra command to run and print (repeatable)")
 ap.add_argument("--append", default="", help="extra kernel parameters")
+ap.add_argument("--machine", default="q35", help="q35 or pc (i440fx)")
+ap.add_argument("--cdrom-if", default="virtio",
+                help="bus for the ISO: virtio, ide (AHCI on q35) or scsi")
+ap.add_argument("--vga", default="none", help="QEMU -vga: none, std, virtio, qxl")
 args = ap.parse_args()
 
 tmp = tempfile.mkdtemp(prefix="featheros-vm-")
@@ -45,11 +49,16 @@ if not label:
 cmdline = (f"archisobasedir=feather archisolabel={label} copytoram=n "
            f"console=ttyS0,115200 "
            f"{args.append}")
-qemu = ["qemu-system-x86_64", "-enable-kvm", "-machine", "q35",
+if args.cdrom_if == "scsi":
+    cdrom = ["-device", "virtio-scsi-pci,id=scsi0",
+             "-drive", f"file={args.iso},media=cdrom,readonly=on,if=none,id=cd0",
+             "-device", "scsi-cd,drive=cd0"]
+else:
+    cdrom = ["-drive", f"file={args.iso},media=cdrom,readonly=on,if={args.cdrom_if}"]
+qemu = ["qemu-system-x86_64", "-enable-kvm", "-machine", args.machine,
         "-cpu", "Penryn", "-smp", "2", "-m", args.mem,
         "-kernel", kernel, "-initrd", initrd, "-append", cmdline,
-        "-drive", f"file={args.iso},media=cdrom,readonly=on,if=virtio",
-        "-nic", "user,model=virtio-net-pci",
+        *cdrom, "-nic", "user,model=virtio-net-pci", "-vga", args.vga,
         "-display", "none", "-serial", "stdio", "-no-reboot"]
 
 t0 = time.time()
