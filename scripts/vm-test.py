@@ -33,6 +33,12 @@ ap.add_argument("--machine", default="q35", help="q35 or pc (i440fx)")
 ap.add_argument("--cdrom-if", default="virtio",
                 help="bus for the ISO: virtio, ide (AHCI on q35) or scsi")
 ap.add_argument("--vga", default="none", help="QEMU -vga: none, std, virtio, qxl")
+ap.add_argument("--audio", action="store_true",
+                help="add an Intel HDA sound card (like the laptop's)")
+ap.add_argument("--throttle-mbps", type=int, default=0,
+                help="limit the boot medium to N MB/s (e.g. 30 = USB 2 stick)")
+ap.add_argument("--timeout", type=int, default=120,
+                help="per-command timeout in seconds")
 args = ap.parse_args()
 
 tmp = tempfile.mkdtemp(prefix="featheros-vm-")
@@ -57,13 +63,21 @@ if args.cdrom_if == "scsi":
              "-drive", f"file={args.iso},media=cdrom,readonly=on,if=none,id=cd0",
              "-device", "scsi-cd,drive=cd0"]
 else:
-    cdrom = ["-drive", f"file={args.iso},media=cdrom,readonly=on,if={args.cdrom_if}"]
+    throttle = ""
+    if args.throttle_mbps:
+        throttle = (f",throttling.bps-total={args.throttle_mbps * 1024 * 1024}"
+                    ",throttling.iops-total=150")
+    cdrom = ["-drive", f"file={args.iso},media=cdrom,readonly=on,"
+             f"if={args.cdrom_if}{throttle}"]
 qemu = ["qemu-system-x86_64", "-enable-kvm", "-machine", args.machine,
         "-cpu", "Penryn", "-smp", "2", "-m", args.mem,
         "-kernel", kernel, "-initrd", initrd, "-append", cmdline,
         *cdrom, "-nic", "user,model=virtio-net-pci", "-vga", args.vga,
         "-display", "none", "-serial", "stdio", "-no-reboot",
         "-monitor", f"unix:{tmp}/mon.sock,server,nowait"]
+if args.audio:
+    qemu += ["-audiodev", "none,id=snd0", "-device", "intel-hda",
+             "-device", "hda-duplex,audiodev=snd0"]
 
 t0 = time.time()
 vm = pexpect.spawn(qemu[0], qemu[1:], encoding="utf-8", timeout=300,
@@ -88,7 +102,8 @@ def shot(path):
     return f"(screenshot: {path})"
 
 
-def run(cmd, timeout=120):
+def run(cmd, timeout=None):
+    timeout = timeout or args.timeout
     if cmd.startswith("@shot "):
         return shot(cmd.split(None, 1)[1])
     if cmd.startswith("@sleep "):
@@ -103,7 +118,10 @@ def run(cmd, timeout=120):
 
 time.sleep(args.settle)
 print(f"== wall clock, QEMU start -> serial login prompt: {t_login:.1f}s")
-for cmd in ["uname -r", "systemd-analyze", "systemd-analyze blame | head -15",
+for cmd in ["uname -r", "systemd-analyze",
+            # Kernel start -> top bar running (the desktop is usable).
+            "t=$(pgrep -xo tint2) && awk -v e=$(ps -o etimes= -p $t | tr -d \" \") "
+            "'{printf \"desktop ready after %.0f s\\n\", $1 - e}' /proc/uptime", "systemd-analyze blame | head -15",
             "free -m",
             # procps-ng 4 reports used = total - available, which also counts
             # the kernel's free-page watermarks. Also show memory really in use.

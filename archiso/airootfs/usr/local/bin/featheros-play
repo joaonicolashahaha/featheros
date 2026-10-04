@@ -1,0 +1,18 @@
+#!/bin/sh
+# Play a web video (YouTube etc.) in mpv: featheros-play [URL]
+# Without a URL, asks for one, pre-filled from the clipboard. mpv + yt-dlp use
+# far less CPU than the browser for the same video (H.264 <= 720p).
+. /usr/lib/featheros/common.sh
+
+url=$1
+if [ -z "$url" ]; then
+    clip=$(xclip -o -selection clipboard 2>/dev/null | head -1)
+    case $clip in http*) ;; *) clip="" ;; esac
+    square=""
+    pgrep -u "$(id -u)" -x picom >/dev/null || square='window { border-radius: 0; }'
+    url=$(printf '' | rofi -dmenu -p "" -filter "$clip" \
+        -theme "$FEATHEROS_SHARE/rofi/spotlight-$MODE.rasi" \
+        -theme-str "entry { placeholder: \"Cole o link do vídeo\"; } listview { lines: 0; } $square")
+fi
+[ -n "$url" ] || exit 0
+exec mpv --force-window=immediate "$url"

@@ -1,0 +1,16 @@
+[Default Applications]
+x-scheme-handler/http=firefox.desktop
+x-scheme-handler/https=firefox.desktop
+text/html=firefox.desktop
+application/pdf=firefox.desktop
+inode/directory=pcmanfm.desktop
+text/plain=geany.desktop
+text/x-c++src=geany.desktop
+text/x-csrc=geany.desktop
+text/x-python=geany.desktop
+text/css=geany.desktop
+application/javascript=geany.desktop
+video/mp4=mpv.desktop
+video/x-matroska=mpv.desktop
+video/webm=mpv.desktop
+audio/mpeg=mpv.desktop

@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""Show real memory use (PSS) per program. Run with sudo to see system services.
+
+    featheros-mem              PSS per program name, plus free -m style totals
+    featheros-mem firefox      PSS of every process named 'firefox' and all of
+                               their child processes (e.g. tabs), summed
+
+PSS (proportional set size) splits shared libraries fairly between the
+processes using them, so the numbers add up to what is really in use; RSS
+would count shared libraries again in every process.
+"""
+import os
+import sys
+from collections import defaultdict
+
+
+def procs():
+    for pid in os.listdir("/proc"):
+        if not pid.isdigit():
+            continue
+        try:
+            with open(f"/proc/{pid}/stat") as f:
+                stat = f.read()
+            comm = stat[stat.index("(") + 1:stat.rindex(")")]
+            ppid = int(stat[stat.rindex(")") + 2:].split()[1])
+            pss = 0
+            with open(f"/proc/{pid}/smaps_rollup") as f:
+                for line in f:
+                    if line.startswith("Pss:"):
+                        pss = int(line.split()[1])
+                        break
+            yield int(pid), ppid, comm, pss
+        except (OSError, ValueError):
+            continue  # gone, kernel thread, or not readable without root
+
+
+def mib(kb):
+    return f"{kb / 1024:7.1f} MB"
+
+
+table = list(procs())
+if len(sys.argv) > 1:
+    children = defaultdict(list)
+    for pid, ppid, _, _ in table:
+        children[ppid].append(pid)
+    by_pid = {pid: (comm, pss) for pid, _, comm, pss in table}
+    for name in sys.argv[1:]:
+        roots = [pid for pid, _, comm, _ in table if comm == name]
+        seen, stack = set(), list(roots)
+        while stack:
+            p = stack.pop()
+            if p not in seen:
+                seen.add(p)
+                stack.extend(children[p])
+        total = sum(by_pid[p][1] for p in seen if p in by_pid)
+        print(f"{name:20} {mib(total)}  ({len(seen)} processes)")
+    sys.exit(0)
+
+per_name = defaultdict(int)
+for _, _, comm, pss in table:
+    per_name[comm] += pss
+for comm, pss in sorted(per_name.items(), key=lambda x: -x[1]):
+    if pss >= 512:
+        print(f"{comm:20} {mib(pss)}")
+print(f"{'(total PSS)':20} {mib(sum(per_name.values()))}")
+mem = {}
+with open("/proc/meminfo") as f:
+    for line in f:
+        k, v = line.split(":")
+        mem[k] = int(v.split()[0])
+print(f"{'free -m used':20} {mib(mem['MemTotal'] - mem['MemAvailable'])}")
+if os.geteuid() != 0:
+    print("(run with sudo to include system services)")

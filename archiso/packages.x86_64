@@ -34,10 +34,39 @@ whitesur-cursor-theme
 inter-font
 ttf-dejavu
 
-# --- Basic apps (Phase 5 measures and finalises the app choices)
+# --- Files and terminal (xfce4-terminal: 60 MB vs Alacritty 107 MB measured)
 pcmanfm
 xfce4-terminal
 
 # --- Laptop keys: volume (ALSA mixer) and brightness
 alsa-utils
 brightnessctl
+
+# --- Audio: PipeWire, socket-activated (starts on first sound, not at boot)
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+
+# --- Browser
+firefox
+firefox-i18n-pt-br
+
+# --- Video: mpv + yt-dlp (H.264 <= 720p, see /etc/mpv/mpv.conf)
+mpv
+yt-dlp
+xclip
+
+# --- Editors (Geany: 57 MB vs Lite XL 108 MB measured) + Neovim
+neovim
+geany
+
+# --- Development
+git
+gcc
+make
+gdb
+python
+python-pip
+nodejs
+npm

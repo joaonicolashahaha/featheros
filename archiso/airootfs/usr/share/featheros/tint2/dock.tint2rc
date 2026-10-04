@@ -52,8 +52,10 @@ launcher_icon_theme = WhiteSur
 launcher_icon_theme_override = 1
 launcher_tooltip = 1
 startup_notifications = 0
+launcher_item_app = /usr/share/applications/firefox.desktop
 launcher_item_app = /usr/share/applications/pcmanfm.desktop
 launcher_item_app = /usr/share/applications/xfce4-terminal.desktop
+launcher_item_app = /usr/share/applications/geany.desktop
 
 # Separator between pinned apps and open windows
 separator = new

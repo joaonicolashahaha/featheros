@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Reproduzir vídeo da web
+Name[en]=Play web video
+Comment=Assistir YouTube e outros sites no mpv (mais leve que o navegador)
+Exec=featheros-play %U
+Icon=mpv
+Categories=AudioVideo;Video;Player;
+Terminal=false
