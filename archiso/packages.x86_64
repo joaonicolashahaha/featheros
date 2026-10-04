@@ -12,3 +12,32 @@ zram-generator
 mkinitcpio
 mkinitcpio-archiso
 syslinux
+
+# --- Desktop (X11): Xorg modesetting + Openbox, tint2 bar/dock, rofi, picom
+xorg-server
+xorg-xinit
+xf86-video-intel
+xf86-input-libinput
+mesa
+openbox
+tint2
+picom
+rofi
+hsetroot
+xsettingsd
+xdg-user-dirs
+
+# --- Look: WhiteSur (FeatherOS builds, see packages/), Inter + DejaVu
+whitesur-gtk-theme
+whitesur-icon-theme
+whitesur-cursor-theme
+inter-font
+ttf-dejavu
+
+# --- Basic apps (Phase 5 measures and finalises the app choices)
+pcmanfm
+xfce4-terminal
+
+# --- Laptop keys: volume (ALSA mixer) and brightness
+alsa-utils
+brightnessctl

@@ -1,0 +1,133 @@
+# FeatherOS top bar (template rendered by featheros-panels; @KEYS@ come
+# from /usr/share/featheros/palettes/<mode>).
+
+# Background 1: bar
+rounded = 0
+border_width = 0
+background_color = @BAR_BG@
+border_color = #000000 0
+
+# Background 2: clickable item (highlight on hover)
+rounded = 4
+border_width = 0
+background_color = #000000 0
+border_color = #000000 0
+background_color_hover = @HOVER@
+border_color_hover = #000000 0
+background_color_pressed = @HOVER@
+border_color_pressed = #000000 0
+
+# Panel: [feather] [active app] ........ [tray] [net] [vol] [bat] [clock]
+panel_items = PTFSEEEC
+panel_size = 100% 26
+panel_margin = 0 0
+panel_padding = 6 0 4
+panel_background_id = 1
+panel_position = top center horizontal
+panel_layer = top
+panel_monitor = all
+panel_window_name = featheros-bar
+strut_policy = follow_size
+wm_menu = 0
+panel_dock = 0
+autohide = 0
+font_shadow = 0
+mouse_effects = 0
+
+# Feather menu
+button = new
+button_icon = /usr/share/featheros/logo-symbolic-@MODE@.svg
+button_text =
+button_lclick_command = featheros-menu
+button_padding = 8 0
+button_max_icon_size = 16
+button_background_id = 2
+button_centered = 1
+button_tooltip = FeatherOS
+
+# Name of the active application only (like the macOS menu bar)
+taskbar_mode = single_desktop
+taskbar_hide_inactive_tasks = 1
+taskbar_hide_if_empty = 0
+taskbar_padding = 0 0 0
+taskbar_background_id = 0
+taskbar_active_background_id = 0
+taskbar_name = 0
+task_icon = 0
+task_text = 1
+task_centered = 0
+task_align = left
+task_maximum_size = 360 26
+task_padding = 8 0 0
+task_tooltip = 0
+task_font = Inter Bold 10
+task_font_color = @TEXT@ 100
+task_active_font_color = @TEXT@ 100
+task_background_id = 0
+task_active_background_id = 0
+task_iconified_background_id = 0
+mouse_left = none
+mouse_middle = none
+mouse_right = none
+mouse_scroll_up = none
+mouse_scroll_down = none
+
+# System tray (only for apps that need one)
+systray_padding = 4 0 6
+systray_background_id = 0
+systray_sort = ascending
+systray_icon_size = 16
+
+# Network (click: Wi-Fi menu)
+execp = new
+execp_command = featheros-status net
+execp_interval = 10
+execp_has_icon = 1
+execp_cache_icon = 1
+execp_icon_w = 16
+execp_icon_h = 16
+execp_lclick_command = featheros-wifi
+execp_padding = 6 0
+execp_background_id = 2
+execp_centered = 1
+execp_tooltip = Wi-Fi
+
+# Volume (click: mute, scroll: change). Updates on mixer events, no polling.
+execp = new
+execp_command = featheros-status vol --follow
+execp_interval = 0
+execp_continuous = 2
+execp_has_icon = 1
+execp_cache_icon = 1
+execp_icon_w = 16
+execp_icon_h = 16
+execp_lclick_command = featheros-volume mute
+execp_uwheel_command = featheros-volume up
+execp_dwheel_command = featheros-volume down
+execp_padding = 6 0
+execp_background_id = 2
+execp_centered = 1
+execp_tooltip = Volume
+
+#@battery
+execp = new
+execp_command = featheros-status bat
+execp_interval = 30
+execp_has_icon = 1
+execp_cache_icon = 1
+execp_icon_w = 16
+execp_icon_h = 16
+execp_font = Inter 10
+execp_font_color = @TEXT@ 100
+execp_padding = 6 0 4
+execp_background_id = 0
+execp_centered = 1
+#@end
+
+# Clock
+time1_format = %a %-d %b  %H:%M
+time1_font = Inter 10
+clock_font_color = @TEXT@ 100
+clock_padding = 8 0
+clock_background_id = 0
+clock_tooltip = %A, %-d de %B de %Y

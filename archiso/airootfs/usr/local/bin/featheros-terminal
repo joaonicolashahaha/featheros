@@ -1,0 +1,3 @@
+#!/bin/sh
+# The default terminal, in one place (keybinding, dock, menus).
+exec xfce4-terminal "$@"

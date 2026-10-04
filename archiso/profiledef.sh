@@ -19,4 +19,7 @@ file_permissions=(
   ["/etc/sudoers.d"]="0:0:750"
   ["/etc/sudoers.d/10-wheel"]="0:0:440"
   ["/etc/sudoers.d/99-live"]="0:0:440"
+  ["/usr/local/bin/"]="0:0:755"
+  ["/usr/lib/featheros/autostart"]="0:0:755"
+  ["/etc/skel/.xinitrc"]="0:0:755"
 )

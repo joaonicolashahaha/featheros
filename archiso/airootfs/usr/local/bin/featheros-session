@@ -1,0 +1,22 @@
+#!/bin/sh
+# FeatherOS X session, started by ~/.xinitrc (startx on tty1).
+
+for f in /etc/X11/xinit/xinitrc.d/?*.sh; do
+    [ -x "$f" ] && . "$f"
+done
+unset f
+
+. /usr/lib/featheros/common.sh
+
+export XCURSOR_THEME=WhiteSur-cursors XCURSOR_SIZE=24
+# Let D-Bus-activated services (file manager helpers, portals) reach X.
+dbus-update-activation-environment --systemd DISPLAY XAUTHORITY \
+    XCURSOR_THEME XCURSOR_SIZE 2>/dev/null
+
+xdg-user-dirs-update
+featheros_xsettings
+xsettingsd -c "$FEATHEROS_CACHE/xsettingsd.conf" >/dev/null 2>&1 &
+hsetroot -cover "$FEATHEROS_SHARE/wallpapers/$MODE.jpg" >/dev/null
+
+# Openbox runs the autostart once it manages the screen.
+exec openbox --startup /usr/lib/featheros/autostart

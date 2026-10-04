@@ -1,0 +1,82 @@
+#!/bin/sh
+# Top-bar status items for tint2 executors: prints an icon path, then text.
+#   featheros-status net            Wi-Fi / Ethernet
+#   featheros-status vol [--follow] volume; --follow keeps printing on change
+#   featheros-status bat            battery
+. /usr/lib/featheros/common.sh
+
+net() {
+    for w in /sys/class/net/*/wireless; do
+        [ -e "$w" ] || continue
+        dev=${w%/wireless}; dev=${dev##*/}
+        # Link quality (0-70) from /proc/net/wireless, if associated.
+        q=$(awk -v d="$dev:" '$1 == d { sub(/\./, "", $3); print $3 }' /proc/net/wireless)
+        if [ -n "$q" ] && [ "$(cat "/sys/class/net/$dev/operstate")" = up ]; then
+            if   [ "$q" -ge 55 ]; then s=excellent
+            elif [ "$q" -ge 40 ]; then s=good
+            elif [ "$q" -ge 25 ]; then s=ok
+            else s=weak; fi
+            featheros_icon "network-wireless-signal-$s-symbolic"; echo; echo
+            return
+        fi
+    done
+    for d in /sys/class/net/*; do
+        [ -e "$d/device" ] && [ ! -e "$d/wireless" ] || continue
+        if [ "$(cat "$d/carrier" 2>/dev/null)" = 1 ]; then
+            featheros_icon network-wired-symbolic; echo; echo
+            return
+        fi
+    done
+    if ls -d /sys/class/net/*/wireless >/dev/null 2>&1; then
+        featheros_icon network-wireless-offline-symbolic
+    else
+        featheros_icon network-offline-symbolic
+    fi
+    echo; echo
+}
+
+vol_once() {
+    card=$(featheros_card)
+    [ -n "$card" ] || return  # no sound card: show nothing
+    set -- $(amixer -c "$card" sget Master |
+             sed -n 's/.*\[\([0-9]*\)%\].*\[\(on\|off\)\].*/\1 \2/p' | head -1)
+    level=${1:-0} sw=${2:-on}
+    if [ "$sw" = off ] || [ "$level" -eq 0 ]; then i=muted
+    elif [ "$level" -lt 34 ]; then i=low
+    elif [ "$level" -lt 67 ]; then i=medium
+    else i=high; fi
+    featheros_icon "audio-volume-$i-symbolic"; echo; echo
+}
+
+vol() {
+    vol_once
+    [ "$1" = --follow ] || return
+    card=$(featheros_card)
+    [ -n "$card" ] || exec sleep infinity
+    # Event-driven: alsactl prints a line on every mixer change.
+    alsactl monitor "hw:$card" 2>/dev/null | while read -r _; do vol_once; done
+}
+
+bat() {
+    for b in /sys/class/power_supply/*; do
+        [ "$(cat "$b/type" 2>/dev/null)" = Battery ] || continue
+        cap=$(cat "$b/capacity"); st=$(cat "$b/status")
+        lvl=$(( (cap + 5) / 10 * 10 ))
+        case $st in
+            Full)     i=battery-full-charged-symbolic ;;
+            Charging) i=battery-level-$lvl-charging-symbolic ;;
+            *)        i=battery-level-$lvl-symbolic ;;
+        esac
+        p=$(featheros_icon "$i")
+        [ -n "$p" ] || p=$(featheros_icon battery-good-symbolic)
+        echo "$p"; echo "$cap%"
+        return
+    done
+}
+
+case $1 in
+    net) net ;;
+    vol) vol "$2" ;;
+    bat) bat ;;
+    *) echo "usage: featheros-status net|vol [--follow]|bat" >&2; exit 2 ;;
+esac

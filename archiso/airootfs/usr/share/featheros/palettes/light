@@ -1,0 +1,8 @@
+# Colours used by the tint2 templates (tint2 format: "#rrggbb alpha%").
+BAR_BG=#f4f4f6 82
+TEXT=#1e1e1e
+HOVER=#000000 10
+DOCK_BG=#ffffff 55
+DOCK_BORDER=#ffffff 75
+ACTIVE=#000000 12
+SEPARATOR=#000000 18

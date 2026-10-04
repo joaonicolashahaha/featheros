@@ -1,0 +1,19 @@
+# FeatherOS build of WhiteSur cursors (https://github.com/vinceliuice/WhiteSur-cursors).
+pkgname=whitesur-cursor-theme
+pkgver=r0.e190baf
+pkgrel=1
+pkgdesc='macOS-like X cursor theme'
+arch=(any)
+url='https://github.com/vinceliuice/WhiteSur-cursors'
+license=(GPL-3.0-or-later)
+_commit=e190baf618ed95ee217d2fd45589bd309b37672b
+source=("$pkgname-$_commit.tar.gz::$url/archive/$_commit.tar.gz")
+sha256sums=('35c817c2c26bc4d2c06801cfe6c924a068ad771d3846c5203b04d1c893dd5664')
+
+package() {
+  cd "WhiteSur-cursors-$_commit"
+  install -d "$pkgdir/usr/share/icons/WhiteSur-cursors"
+  # Only the X cursors; the scalable (Wayland/KDE) set is unused on X11.
+  cp -r dist/cursors dist/index.theme "$pkgdir/usr/share/icons/WhiteSur-cursors/"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

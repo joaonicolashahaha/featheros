@@ -16,6 +16,8 @@ import sys
 import tempfile
 import time
 
+import socket
+
 import pexpect
 
 ap = argparse.ArgumentParser()
@@ -24,7 +26,8 @@ ap.add_argument("--mem", default="3072")
 ap.add_argument("--settle", type=int, default=60,
                 help="seconds to wait after login before measuring")
 ap.add_argument("--cmd", action="append", default=[],
-                help="extra command to run and print (repeatable)")
+                help="extra command to run and print (repeatable). Special:"
+                     " '@shot FILE.png' takes a screenshot, '@sleep N' waits")
 ap.add_argument("--append", default="", help="extra kernel parameters")
 ap.add_argument("--machine", default="q35", help="q35 or pc (i440fx)")
 ap.add_argument("--cdrom-if", default="virtio",
@@ -59,7 +62,8 @@ qemu = ["qemu-system-x86_64", "-enable-kvm", "-machine", args.machine,
         "-cpu", "Penryn", "-smp", "2", "-m", args.mem,
         "-kernel", kernel, "-initrd", initrd, "-append", cmdline,
         *cdrom, "-nic", "user,model=virtio-net-pci", "-vga", args.vga,
-        "-display", "none", "-serial", "stdio", "-no-reboot"]
+        "-display", "none", "-serial", "stdio", "-no-reboot",
+        "-monitor", f"unix:{tmp}/mon.sock,server,nowait"]
 
 t0 = time.time()
 vm = pexpect.spawn(qemu[0], qemu[1:], encoding="utf-8", timeout=300,
@@ -75,7 +79,21 @@ time.sleep(1)
 ESC = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)")
 
 
+def shot(path):
+    s = socket.socket(socket.AF_UNIX)
+    s.connect(f"{tmp}/mon.sock")
+    s.sendall(f"screendump {os.path.abspath(path)} -f png\n".encode())
+    time.sleep(1.5)
+    s.close()
+    return f"(screenshot: {path})"
+
+
 def run(cmd, timeout=120):
+    if cmd.startswith("@shot "):
+        return shot(cmd.split(None, 1)[1])
+    if cmd.startswith("@sleep "):
+        time.sleep(float(cmd.split()[1]))
+        return ""
     # The markers are split in the sent text so the echo can't match them.
     vm.sendline(f"echo __B''EGIN__; {cmd}; echo __E''ND__")
     vm.expect("__BEGIN__", timeout=timeout)

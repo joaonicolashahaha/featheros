@@ -1,0 +1,22 @@
+#!/bin/sh
+# "Sobre este computador": a short system summary.
+. /usr/lib/featheros/common.sh
+
+cpu=$(sed -n 's/^model name[[:space:]]*: //p' /proc/cpuinfo | head -1 | tr -s ' ')
+gpu=$(lspci 2>/dev/null | sed -n 's/.*VGA compatible controller: //p' | head -1)
+mem=$(free -m | awk '/^Mem/ { printf "%d MB de %d MB em uso", $3, $2 }')
+disk=$(df -h / | awk 'NR == 2 { printf "%s livres de %s", $4, $2 }')
+. /etc/featheros-release
+
+text="<b>${NAME:-FeatherOS}</b>
+Kernel $(uname -r)
+
+Processador: $cpu
+Gráficos: ${gpu:-desconhecido}
+Memória: $mem
+Disco: $disk"
+
+square=""
+pgrep -u "$(id -u)" -x picom >/dev/null || square='window { border-radius: 0; }'
+rofi -e "$text" -markup -theme "$FEATHEROS_SHARE/rofi/menu-$MODE.rasi" \
+    -theme-str "window { location: center; anchor: center; width: 460px; } $square"

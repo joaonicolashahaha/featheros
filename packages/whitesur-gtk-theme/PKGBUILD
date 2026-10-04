@@ -1,0 +1,24 @@
+# FeatherOS build of WhiteSur GTK (https://github.com/vinceliuice/WhiteSur-gtk-theme).
+# Only the prebuilt "solid" Light/Dark releases (no translucency: cheaper to
+# draw on the GMA 4500M) and only the GTK 2/3/4 parts; the GNOME Shell,
+# Cinnamon, Metacity, XFWM, Unity and Plank parts are unused on FeatherOS.
+pkgname=whitesur-gtk-theme
+pkgver=2026.09.10
+pkgrel=1
+pkgdesc='macOS-like GTK theme (FeatherOS subset: Light/Dark solid)'
+arch=(any)
+url='https://github.com/vinceliuice/WhiteSur-gtk-theme'
+license=(MIT)
+_tag=${pkgver//./-}
+source=("$pkgname-$_tag.tar.gz::$url/archive/refs/tags/$_tag.tar.gz")
+sha256sums=('65516c8f45da45c602471e31b4de0b6e9aed6eb3fc3820df16161d077245a1a2')
+
+package() {
+  local dest="$pkgdir/usr/share/themes" variant
+  install -d "$dest"
+  for variant in Light Dark; do
+    tar -xJf "WhiteSur-gtk-theme-$_tag/release/WhiteSur-$variant-solid.tar.xz" -C "$dest"
+    rm -rf "$dest/WhiteSur-$variant-solid/"{cinnamon,gnome-shell,metacity-1,plank,unity,xfwm4}
+  done
+  install -Dm644 "WhiteSur-gtk-theme-$_tag/COPYING" "$pkgdir/usr/share/licenses/$pkgname/COPYING"
+}

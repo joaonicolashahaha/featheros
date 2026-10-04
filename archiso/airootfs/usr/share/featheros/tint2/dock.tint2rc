@@ -1,0 +1,88 @@
+# FeatherOS dock (template rendered by featheros-panels).
+
+# Background 1: dock
+rounded = 14
+border_width = 1
+border_sides = TBLR
+background_color = @DOCK_BG@
+border_color = @DOCK_BORDER@
+
+# Background 2: icon hover
+rounded = 10
+border_width = 0
+background_color = #000000 0
+border_color = #000000 0
+background_color_hover = @HOVER@
+border_color_hover = #000000 0
+background_color_pressed = @HOVER@
+border_color_pressed = #000000 0
+
+# Background 3: running window (active one highlighted)
+rounded = 10
+border_width = 0
+background_color = @ACTIVE@
+border_color = #000000 0
+background_color_hover = @HOVER@
+border_color_hover = #000000 0
+
+# Panel: [pinned apps] | [open windows]
+panel_items = L:T
+panel_size = 0 58
+panel_shrink = 1
+panel_margin = 0 6
+panel_padding = 8 6 6
+panel_background_id = 1
+panel_position = bottom center horizontal
+panel_layer = top
+panel_monitor = all
+panel_window_name = featheros-dock
+strut_policy = follow_size
+wm_menu = 0
+panel_dock = 0
+autohide = 0
+mouse_effects = 1
+mouse_hover_icon_asb = 100 0 12
+
+# Pinned apps
+launcher_padding = 0 0 6
+launcher_background_id = 0
+launcher_icon_background_id = 2
+launcher_icon_size = 42
+launcher_icon_theme = WhiteSur
+launcher_icon_theme_override = 1
+launcher_tooltip = 1
+startup_notifications = 0
+launcher_item_app = /usr/share/applications/pcmanfm.desktop
+launcher_item_app = /usr/share/applications/xfce4-terminal.desktop
+
+# Separator between pinned apps and open windows
+separator = new
+separator_background_id = 0
+separator_color = @SEPARATOR@
+separator_style = line
+separator_size = 1
+separator_padding = 6 8
+
+# Open windows (icons only)
+taskbar_mode = single_desktop
+taskbar_hide_if_empty = 1
+taskbar_padding = 0 0 6
+taskbar_background_id = 0
+taskbar_active_background_id = 0
+taskbar_name = 0
+task_icon = 1
+task_text = 0
+task_centered = 1
+task_maximum_size = 46 46
+task_padding = 2 2 0
+task_icon_asb = 100 0 0
+task_tooltip = 1
+task_background_id = 2
+task_active_background_id = 3
+task_iconified_background_id = 2
+task_urgent_background_id = 3
+mouse_left = toggle_iconify
+mouse_middle = close
+mouse_right = none
+mouse_scroll_up = none
+mouse_scroll_down = none

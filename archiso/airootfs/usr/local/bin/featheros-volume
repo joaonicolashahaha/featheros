@@ -1,0 +1,14 @@
+#!/bin/sh
+# Volume keys / top-bar volume: featheros-volume up|down|mute
+# Uses the ALSA hardware mixer directly, so it works whether or not an audio
+# server is running and never starts one by itself.
+. /usr/lib/featheros/common.sh
+
+card=$(featheros_card)
+[ -n "$card" ] || exit 0
+case $1 in
+    up)   amixer -q -c "$card" sset Master 5%+ unmute ;;
+    down) amixer -q -c "$card" sset Master 5%- ;;
+    mute) amixer -q -c "$card" sset Master toggle ;;
+    *) echo "usage: featheros-volume up|down|mute" >&2; exit 2 ;;
+esac

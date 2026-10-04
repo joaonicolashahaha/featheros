@@ -1,0 +1,23 @@
+#!/bin/sh
+# Visual effects (picom: shadows + rounded corners): featheros-effects on|off|toggle
+# Off = no compositor at all: zero extra CPU/RAM. The choice is remembered.
+. /usr/lib/featheros/common.sh
+
+running() { pgrep -u "$(id -u)" -x picom >/dev/null; }
+
+case $1 in
+    toggle) if running; then set -- off; else set -- on; fi ;;
+esac
+case $1 in
+    on)
+        featheros_set EFFECTS on
+        conf="${XDG_CONFIG_HOME:-$HOME/.config}/picom/picom.conf"
+        [ -r "$conf" ] || conf="$FEATHEROS_SHARE/picom.conf"
+        running || picom --config "$conf" -b
+        ;;
+    off)
+        featheros_set EFFECTS off
+        pkill -u "$(id -u)" -x picom
+        ;;
+    *) echo "usage: featheros-effects on|off|toggle" >&2; exit 2 ;;
+esac

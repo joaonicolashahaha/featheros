@@ -1,0 +1,9 @@
+#!/bin/sh
+# Spotlight-style application search (Super+Space).
+. /usr/lib/featheros/common.sh
+
+# Rounded corners need the compositor; without it they would show black.
+square=""
+pgrep -u "$(id -u)" -x picom >/dev/null || square='window { border-radius: 0; }'
+exec rofi -show drun -theme "$FEATHEROS_SHARE/rofi/spotlight-$MODE.rasi" \
+    -theme-str "$square" "$@"

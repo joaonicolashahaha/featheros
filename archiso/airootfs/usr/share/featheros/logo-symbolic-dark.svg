@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 64 64">
+  <!-- FeatherOS logo (symbolic). Original artwork, CC0. -->
+  <mask id="cuts"><rect width="64" height="64" fill="#fff"/>
+    <path d="M54 30 44 21M44 43 35 32" stroke="#000" stroke-width="2.6" stroke-linecap="round"/></mask>
+  <path fill="#e8e8e8" mask="url(#cuts)" d="M55 6C40 7 24 17 18 36l-2 6 7-5-3 8 8-4-2 6c13-3 25-15 29-41z"/>
+  <path fill="none" stroke="#e8e8e8" stroke-width="4" stroke-linecap="round" d="M50 12 9 58"/>
+</svg>

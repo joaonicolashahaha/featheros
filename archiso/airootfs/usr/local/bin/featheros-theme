@@ -1,0 +1,34 @@
+#!/bin/sh
+# Light/dark appearance: featheros-theme light|dark|toggle
+# Applies to GTK (new windows), Openbox, panels, launcher and wallpaper.
+. /usr/lib/featheros/common.sh
+
+case $1 in
+    toggle) if [ "$MODE" = dark ]; then set -- light; else set -- dark; fi ;;
+esac
+case $1 in
+    light) gtk=WhiteSur-Light-solid icons=WhiteSur-light ob=FeatherOS-Light dark=0 ;;
+    dark)  gtk=WhiteSur-Dark-solid  icons=WhiteSur-dark  ob=FeatherOS-Dark  dark=1 ;;
+    *) echo "usage: featheros-theme light|dark|toggle" >&2; exit 2 ;;
+esac
+featheros_set MODE "$1"
+MODE=$1
+
+cfg=${XDG_CONFIG_HOME:-$HOME/.config}
+for f in "$cfg/gtk-3.0/settings.ini" "$cfg/gtk-4.0/settings.ini"; do
+    [ -w "$f" ] || continue
+    sed -i -e "s|^gtk-theme-name=.*|gtk-theme-name=$gtk|" \
+           -e "s|^gtk-icon-theme-name=.*|gtk-icon-theme-name=$icons|" \
+           -e "s|^gtk-application-prefer-dark-theme=.*|gtk-application-prefer-dark-theme=$dark|" "$f"
+done
+[ -w "$HOME/.gtkrc-2.0" ] && sed -i \
+    -e "s|^gtk-theme-name=.*|gtk-theme-name=\"$gtk\"|" \
+    -e "s|^gtk-icon-theme-name=.*|gtk-icon-theme-name=\"$icons\"|" "$HOME/.gtkrc-2.0"
+[ -w "$cfg/openbox/rc.xml" ] && sed -i \
+    "s|<name>FeatherOS-[A-Za-z]*</name>|<name>$ob</name>|" "$cfg/openbox/rc.xml"
+
+featheros_xsettings
+pkill -HUP -u "$(id -u)" -x xsettingsd   # running GTK apps switch live
+openbox --reconfigure 2>/dev/null
+hsetroot -cover "$FEATHEROS_SHARE/wallpapers/$MODE.jpg" >/dev/null
+featheros-panels

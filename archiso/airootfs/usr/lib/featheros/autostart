@@ -1,0 +1,6 @@
+#!/bin/sh
+# Started by Openbox (featheros-session): compositor and panels.
+. /usr/lib/featheros/common.sh
+
+[ "$EFFECTS" = on ] && featheros-effects on
+featheros-panels

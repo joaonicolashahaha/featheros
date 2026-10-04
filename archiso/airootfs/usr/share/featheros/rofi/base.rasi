@@ -1,0 +1,31 @@
+/* FeatherOS rofi base theme. Colours come from spotlight-*.rasi / menu-*.rasi. */
+configuration {
+    show-icons: true;
+    icon-theme: "WhiteSur";
+    drun-display-format: "{name}";
+    display-drun: "";
+    font: "Inter 11";
+    hover-select: true;
+    me-select-entry: "";
+    me-accept-entry: "MousePrimary";
+}
+* {
+    background-color: transparent;
+    text-color: @fg;
+}
+window {
+    background-color: @bg;
+    border: 1px;
+    border-color: @line;
+    border-radius: 12px;
+    padding: 8px;
+}
+mainbox { spacing: 6px; }
+inputbar { padding: 6px 8px; spacing: 8px; children: [ entry ]; }
+entry { placeholder-color: @dim; }
+listview { scrollbar: false; spacing: 2px; fixed-height: false; }
+element { padding: 6px 8px; border-radius: 7px; spacing: 10px; }
+element selected { background-color: @sel; text-color: @selfg; }
+element-icon { size: 22px; }
+element-text { text-color: inherit; vertical-align: 0.5; }
+textbox { padding: 8px; }

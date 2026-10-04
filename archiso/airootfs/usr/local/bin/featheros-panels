@@ -1,0 +1,28 @@
+#!/bin/sh
+# (Re)start the top bar and the dock (two tint2 instances).
+# The configs are rendered from templates in /usr/share/featheros/tint2 with
+# the colours of the current mode. To customise one, copy the rendered file
+# from ~/.cache/featheros/ to ~/.config/tint2/bar.tint2rc (or dock.tint2rc).
+. /usr/lib/featheros/common.sh
+
+mkdir -p "$FEATHEROS_CACHE"
+pal="$FEATHEROS_SHARE/palettes/$MODE"
+has_battery=no
+for b in /sys/class/power_supply/*; do
+    [ "$(cat "$b/type" 2>/dev/null)" = Battery ] && has_battery=yes
+done
+
+pkill -u "$(id -u)" -x tint2
+for p in bar dock; do
+    conf="${XDG_CONFIG_HOME:-$HOME/.config}/tint2/$p.tint2rc"
+    if [ ! -r "$conf" ]; then
+        conf="$FEATHEROS_CACHE/$p.tint2rc"
+        # @KEY@ -> value from the palette; drop the battery block if none.
+        sed -e "$(sed -n 's/^\([A-Z_]*\)=\(.*\)$/s|@\1@|\2|g;/p' "$pal")" \
+            -e "s|@MODE@|$MODE|g" \
+            "$FEATHEROS_SHARE/tint2/$p.tint2rc" |
+        if [ $has_battery = yes ]; then cat; else sed '/^#@battery/,/^#@end/d'; fi \
+            >"$conf"
+    fi
+    tint2 -c "$conf" >/dev/null 2>&1 &
+done

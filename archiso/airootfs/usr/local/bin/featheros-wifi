@@ -1,0 +1,48 @@
+#!/bin/sh
+# Wi-Fi menu (click the network icon in the top bar). Talks to iwd via iwctl;
+# no applet runs in the background.
+. /usr/lib/featheros/common.sh
+
+theme="$FEATHEROS_SHARE/rofi/menu-$MODE.rasi"
+square=""
+pgrep -u "$(id -u)" -x picom >/dev/null || square='window { border-radius: 0; }'
+menu() { rofi -dmenu -i -theme "$theme" -theme-str "window { location: northeast; anchor: northeast; x-offset: -8px; } $square" "$@"; }
+say()  { rofi -e "$1" -theme "$theme" -theme-str "window { location: center; anchor: center; } $square"; }
+
+dev=$(iwctl device list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' |
+      awk '$0 ~ /station/ { print $1; exit }')
+[ -n "$dev" ] || { say "Nenhum adaptador Wi-Fi encontrado."; exit 0; }
+
+iwctl station "$dev" scan >/dev/null 2>&1
+sleep 2
+# get-networks columns: [>] SSID  security  signal(****). The SSID may
+# contain spaces, so take the last two fields off the end.
+list=$(iwctl station "$dev" get-networks 2>/dev/null |
+       sed 's/\x1b\[[0-9;]*m//g' | sed '1,4d;/^[[:space:]]*$/d' |
+       awk '{ cur = ($1 == ">") ? "✓ " : "";
+              if (cur != "") $1 = "";
+              sig = $NF; sec = $(NF-1); $NF = ""; $(NF-1) = "";
+              sub(/^ +/, ""); sub(/ +$/, "");
+              printf "%s%s\t%s\t%s\n", cur, $0, sec, sig }')
+
+choice=$( { echo "Desconectar"; echo "$list" | awk -F'\t' 'NF { printf "%-28s %s  %s\n", $1, $3, ($2 == "open" ? "" : "🔒") }'; } |
+          menu -p "Wi-Fi" -format s)
+[ -n "$choice" ] || exit 0
+if [ "$choice" = Desconectar ]; then
+    iwctl station "$dev" disconnect
+    exit 0
+fi
+
+line=$(echo "$list" | awk -F'\t' -v c="$choice" 'index(c, $1) == 1 { print; exit }')
+ssid=$(echo "$line" | cut -f1 | sed 's/^✓ //')
+sec=$(echo "$line" | cut -f2)
+
+# Known or open networks connect directly; others ask for the password.
+if iwctl known-networks list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -qF "  $ssid  " ||
+   [ "$sec" = open ]; then
+    iwctl station "$dev" connect "$ssid" || say "Não foi possível conectar a $ssid."
+else
+    pw=$(menu -password -p "Senha de $ssid" </dev/null) || exit 0
+    iwctl --passphrase "$pw" station "$dev" connect "$ssid" ||
+        say "Não foi possível conectar a $ssid. Verifique a senha."
+fi

@@ -1,0 +1,28 @@
+#!/bin/sh
+# The feather menu in the top-left corner (like the macOS Apple menu).
+. /usr/lib/featheros/common.sh
+
+if [ "$MODE" = dark ]; then appearance="Aparência clara"; else appearance="Aparência escura"; fi
+if pgrep -u "$(id -u)" -x picom >/dev/null; then effects="Desligar efeitos visuais"
+else effects="Ligar efeitos visuais"; fi
+square=""
+pgrep -u "$(id -u)" -x picom >/dev/null || square='window { border-radius: 0; }'
+
+choice=$(printf '%s\0icon\x1f%s\n' \
+    "Sobre este computador" computer-symbolic \
+    "$appearance" weather-clear-night-symbolic \
+    "$effects" preferences-desktop-display-symbolic \
+    "Encerrar sessão" system-log-out-symbolic \
+    "Reiniciar" system-reboot-symbolic \
+    "Desligar" system-shutdown-symbolic |
+    rofi -dmenu -i -no-custom -format i -p "" \
+        -theme "$FEATHEROS_SHARE/rofi/menu-$MODE.rasi" -theme-str "$square")
+
+case $choice in
+    0) featheros-about ;;
+    1) featheros-theme toggle ;;
+    2) featheros-effects toggle ;;
+    3) openbox --exit ;;
+    4) systemctl reboot ;;
+    5) systemctl poweroff ;;
+esac

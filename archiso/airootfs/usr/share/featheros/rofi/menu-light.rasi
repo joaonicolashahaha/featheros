@@ -1,0 +1,8 @@
+/* Drop-down menus (feather menu, Wi-Fi). */
+* { bg: #f6f6f8; fg: #1e1e1e; dim: #8e8e93; line: #00000022; sel: #3a82f7; selfg: #ffffff; }
+@import "base.rasi"
+window { location: northwest; anchor: northwest; x-offset: 4px; y-offset: 30px; width: 280px; padding: 5px; }
+mainbox { children: [ listview ]; }
+listview { lines: 8; }
+element { padding: 5px 8px; }
+element-icon { size: 16px; }
