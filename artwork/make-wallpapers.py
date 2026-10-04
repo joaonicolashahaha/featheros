@@ -2,7 +2,7 @@
 """Generate the FeatherOS wallpapers (original artwork, CC0).
 
 Soft overlapping colour fields with a few gentle "feather" curves.
-Output: archiso/airootfs/usr/share/featheros/wallpapers/{light,dark}.jpg
+Output: packages/featheros-desktop/files/usr/share/featheros/wallpapers/{light,dark}.jpg
 
     python3 artwork/make-wallpapers.py      (needs python-numpy, python-pillow)
 """
@@ -12,7 +12,7 @@ import numpy as np
 from PIL import Image
 
 W, H = 1920, 1200          # 16:10, like the laptop's 1280x800 panel
-OUT = os.path.join(os.path.dirname(__file__), "..", "archiso", "airootfs",
+OUT = os.path.join(os.path.dirname(__file__), "..", "packages", "featheros-desktop", "files",
                    "usr", "share", "featheros", "wallpapers")
 
 y, x = np.mgrid[0:H, 0:W].astype(np.float32)

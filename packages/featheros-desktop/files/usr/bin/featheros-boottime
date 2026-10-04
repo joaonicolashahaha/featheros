@@ -1,0 +1,11 @@
+#!/bin/sh
+# How long the last boot took, up to a usable desktop.
+#   featheros-boottime
+systemd-analyze 2>/dev/null | head -1
+up=$(cut -d' ' -f1 /proc/uptime)
+for n in Xorg openbox tint2; do
+    p=$(pgrep -xo "$n") || { echo "$n: not running"; continue; }
+    e=$(ps -o etimes= -p "$p" | tr -d ' ')
+    awk -v u="$up" -v e="$e" -v n="$n" 'BEGIN { printf "%-8s started %5.1f s after the kernel\n", n, u - e }'
+done
+echo "(desktop ready = tint2 start; add firmware POST + GRUB for power-on time)"

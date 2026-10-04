@@ -1,0 +1,14 @@
+#!/bin/sh
+# Show or change where FeatherOS updates come from.
+#   featheros-update-server                 show the current server
+#   sudo featheros-update-server HOST[:PORT] use another server (name or IP)
+conf=/etc/pacman.conf
+if [ -z "$1" ]; then
+    sed -n '/^\[featheros\]/,/^\[/s/^Server *= *//p' "$conf"
+    exit 0
+fi
+[ "$(id -u)" = 0 ] || { echo "Use: sudo featheros-update-server $1" >&2; exit 1; }
+host=$1
+case $host in *:*) ;; *) host="$host:8080" ;; esac
+sed -i "/^\[featheros\]/,/^\[/s|^Server *=.*|Server = http://$host/\$arch|" "$conf"
+echo "Servidor de atualizações: http://$host/\$arch"

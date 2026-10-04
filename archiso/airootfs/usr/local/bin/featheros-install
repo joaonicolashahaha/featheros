@@ -1,0 +1,242 @@
+#!/usr/bin/env bash
+# FeatherOS installer (live USB only): erases a whole disk and installs the
+# system that is running from the USB stick, so no internet is needed.
+#
+# Interactive:   sudo featheros-install
+# Unattended (testing): FEATHEROS_AUTO=1 DISK=/dev/vda USERNAME=ana
+#   PASSWORD=... [FULLNAME=...] [HOSTNAME=featheros] [AUTOLOGIN=no]
+#   [SERVER=my-desktop.local] [EXTRA_CMDLINE=...] sudo -E featheros-install
+set -euo pipefail
+
+[[ $EUID == 0 ]] || exec sudo "$0" "$@"
+[[ -d /run/archiso ]] || { echo "Execute o instalador a partir do pendrive do FeatherOS." >&2; exit 1; }
+
+TITLE="Instalador do FeatherOS"
+TARGET=/mnt/featheros
+LOG=/var/log/featheros-install.log
+AUTO=${FEATHEROS_AUTO:-0}
+DEFAULT_SERVER=my-desktop.local
+MIN_BYTES=$((8 * 1024 * 1024 * 1024))
+
+d() { dialog --stdout --backtitle "$TITLE" "$@"; }
+fail() {
+    [[ $AUTO == 1 ]] || d --title "Erro" --msgbox "$1\n\nDetalhes em $LOG" 10 60
+    echo "ERRO: $1" >&2
+    exit 1
+}
+
+# --- Questions ---------------------------------------------------------------
+boot_disk() {  # the USB stick we are running from (never offered)
+    local src; src=$(findmnt -no SOURCE /run/archiso/bootmnt 2>/dev/null) || return 0
+    lsblk -npo PKNAME "$src" 2>/dev/null | head -1
+}
+
+ask() {
+    local disks=() NAME SIZE MODEL TYPE
+    local skip; skip=$(boot_disk)
+    # -P: KEY="value" pairs, safe with empty or multi-word models.
+    while read -r line; do
+        eval "$line"
+        [[ $TYPE == disk && $NAME != /dev/zram* && $NAME != "$skip" ]] || continue
+        disks+=("$NAME" "$SIZE ${MODEL:-disco}")
+    done < <(lsblk -dnpP -o NAME,SIZE,MODEL,TYPE)
+    ((${#disks[@]})) || fail "Nenhum disco encontrado para instalar."
+
+    d --title "Bem-vindo" --yesno "Este assistente instala o FeatherOS no computador.\n\nO disco escolhido será APAGADO por completo.\n\nContinuar?" 11 60 || exit 0
+    DISK=$(d --title "Disco" --menu "Em qual disco instalar? (todo o conteúdo será apagado)" 15 64 6 "${disks[@]}") || exit 0
+    FULLNAME=$(d --title "Usuário" --inputbox "Seu nome completo:" 8 60) || exit 0
+    while :; do
+        USERNAME=$(d --title "Usuário" --inputbox "Nome de usuário (minúsculas, sem espaços):" 8 60 \
+            "$(echo "${FULLNAME%% *}" | tr '[:upper:]' '[:lower:]' | iconv -f utf-8 -t ascii//TRANSLIT 2>/dev/null | tr -cd 'a-z0-9_-')") || exit 0
+        [[ $USERNAME =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] && break
+        d --msgbox "Nome inválido. Use letras minúsculas, números, - ou _." 7 60
+    done
+    while :; do
+        PASSWORD=$(d --title "Senha" --insecure --passwordbox "Senha de $USERNAME (também usada para o sudo):" 8 60) || exit 0
+        local again; again=$(d --title "Senha" --insecure --passwordbox "Repita a senha:" 8 60) || exit 0
+        [[ -n $PASSWORD && $PASSWORD == "$again" ]] && break
+        d --msgbox "As senhas não conferem (ou estão vazias). Tente de novo." 7 60
+    done
+    HOSTNAME=$(d --title "Computador" --inputbox "Nome deste computador na rede:" 8 60 featheros) || exit 0
+    AUTOLOGIN=no
+    d --title "Entrada" --defaultno --yesno "Entrar automaticamente, sem pedir senha ao ligar?\n\n(Recomendado: Não)" 9 60 && AUTOLOGIN=yes
+    local hint=""
+    getent hosts "$DEFAULT_SERVER" >/dev/null 2>&1 ||
+        hint="\n\nAviso: $DEFAULT_SERVER não respondeu agora. Se o desktop estiver desligado tudo bem; se não, use o IP (ex.: 192.168.1.10)."
+    SERVER=$(d --title "Atualizações" --inputbox "Servidor de atualizações do FeatherOS (nome ou IP do seu desktop):$hint" 13 64 "$DEFAULT_SERVER") || exit 0
+
+    d --title "Confirmar" --defaultno --yesno "Disco: $DISK  (SERÁ APAGADO)\nUsuário: $USERNAME ($FULLNAME)\nComputador: $HOSTNAME\nEntrada automática: $AUTOLOGIN\nAtualizações: $SERVER\n\nInstalar agora?" 13 64 || exit 0
+}
+
+if [[ $AUTO == 1 ]]; then
+    : "${DISK:?}" "${USERNAME:?}" "${PASSWORD:?}"
+    FULLNAME=${FULLNAME:-$USERNAME} HOSTNAME=${HOSTNAME:-featheros}
+    AUTOLOGIN=${AUTOLOGIN:-no} SERVER=${SERVER:-$DEFAULT_SERVER}
+else
+    ask
+    clear
+fi
+EXTRA_CMDLINE=${EXTRA_CMDLINE:-}
+case $SERVER in *:*) ;; *) SERVER="$SERVER:8080" ;; esac
+
+# --- Install -----------------------------------------------------------------
+exec > >(tee -a "$LOG") 2>&1
+step() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
+trap 'echo; echo "A instalação falhou. Veja $LOG"; umount -R "$TARGET" 2>/dev/null || true' ERR
+
+[[ -b $DISK && $(lsblk -dno TYPE "$DISK") == disk ]] || fail "$DISK não é um disco."
+[[ $DISK != "$(boot_disk)" ]] || fail "$DISK é o próprio pendrive do FeatherOS."
+uefi=no; [[ -d /sys/firmware/efi ]] && uefi=yes
+size=$(lsblk -dnbo SIZE "$DISK")
+((size >= MIN_BYTES)) || fail "O disco $DISK é pequeno demais (mínimo 8 GB)."
+sfs=$(find /run/archiso -name airootfs.sfs -print -quit)
+[[ -n $sfs ]] || fail "Imagem do sistema (airootfs.sfs) não encontrada."
+
+step "Apagando e particionando $DISK ($( [[ $uefi == yes ]] && echo UEFI/GPT || echo BIOS/MBR ))"
+umount -R "$TARGET" 2>/dev/null || true
+swapoff -a 2>/dev/null || true
+wipefs -af "$DISK"
+if [[ $uefi == yes ]]; then
+    sfdisk -q --wipe always "$DISK" <<EOF
+label: gpt
+size=512MiB, type=uefi, name=EFI
+type=linux, name=FeatherOS
+EOF
+else
+    sfdisk -q --wipe always "$DISK" <<EOF
+label: dos
+type=83, bootable
+EOF
+fi
+udevadm settle
+mapfile -t parts < <(lsblk -lnpo NAME,TYPE "$DISK" | awk '$2 == "part" { print $1 }')
+if [[ $uefi == yes ]]; then esp=${parts[0]} root=${parts[1]}; else root=${parts[0]}; fi
+
+step "Formatando"
+mkfs.ext4 -F -q -L FeatherOS "$root"
+[[ $uefi == yes ]] && mkfs.fat -F 32 -n EFI "$esp" >/dev/null
+mkdir -p "$TARGET"
+mount -o noatime "$root" "$TARGET"
+if [[ $uefi == yes ]]; then
+    mkdir -p "$TARGET/boot/efi"
+    mount "$esp" "$TARGET/boot/efi"
+fi
+
+step "Copiando o sistema (alguns minutos)"
+unsquashfs -f -d "$TARGET" "$sfs"
+
+step "Kernels"
+for m in "$TARGET"/usr/lib/modules/*/; do
+    [[ -f $m/pkgbase ]] && install -Dm644 "$m/vmlinuz" "$TARGET/boot/vmlinuz-$(<"$m/pkgbase")"
+done
+
+step "Tabela de partições (fstab)"
+genfstab -U "$TARGET" | sed 's/relatime/noatime/' >"$TARGET/etc/fstab"
+
+step "Configurando o sistema"
+keyfile=/usr/share/featheros/keys/featheros.asc
+keyfpr=$(gpg --show-keys --with-colons "$keyfile" 2>/dev/null | awk -F: '/^fpr/ { print $10; exit }')
+{
+    printf 'USERNAME=%q FULLNAME=%q PASSWORD=%q HOSTNAME=%q AUTOLOGIN=%q\n' \
+        "$USERNAME" "$FULLNAME" "$PASSWORD" "$HOSTNAME" "$AUTOLOGIN"
+    printf 'SERVER=%q UEFI=%q DISK=%q KEYFPR=%q EXTRA_CMDLINE=%q\n' \
+        "$SERVER" "$uefi" "$DISK" "$keyfpr" "$EXTRA_CMDLINE"
+    cat <<'SETUP'
+set -euo pipefail
+
+# Live-session leftovers
+userdel feather 2>/dev/null || true
+rm -f /etc/sudoers.d/99-live /etc/tmpfiles.d/live-home.conf \
+      /etc/systemd/system/getty@tty1.service.d/autologin.conf \
+      /etc/systemd/journald.conf.d/volatile-storage.conf \
+      /etc/mkinitcpio.conf.d/archiso.conf /etc/mkinitcpio.d/*.preset \
+      /etc/systemd/system/pacman-init.service \
+      /etc/systemd/system/etc-pacman.d-gnupg.mount \
+      /usr/local/bin/featheros-install \
+      /usr/local/share/applications/featheros-install.desktop
+pacman -Rdd --noconfirm mkinitcpio-archiso syslinux >/dev/null
+
+# Logs on disk, capped at 50 MB
+mkdir -p /etc/systemd/journald.conf.d
+printf '[Journal]\nSystemMaxUse=50M\n' >/etc/systemd/journald.conf.d/size.conf
+
+# Identity
+echo "$HOSTNAME" >/etc/hostname
+printf '127.0.0.1 localhost\n::1 localhost\n127.0.1.1 %s\n' "$HOSTNAME" >/etc/hosts
+systemd-machine-id-setup >/dev/null
+
+# User (in wheel: sudo with own password); root stays locked
+useradd -m -G wheel -s /bin/bash -c "$FULLNAME" "$USERNAME"
+echo "$USERNAME:$PASSWORD" | chpasswd
+if [[ $AUTOLOGIN == yes ]]; then
+    mkdir -p /etc/systemd/system/getty@tty1.service.d
+    printf '[Service]\nExecStart=\nExecStart=-/usr/bin/agetty --noreset --noclear --autologin %s - ${TERM}\n' \
+        "$USERNAME" >/etc/systemd/system/getty@tty1.service.d/autologin.conf
+fi
+
+# Initramfs for both kernels: small (autodetect), Intel microcode, early KMS
+cat >/etc/mkinitcpio.conf.d/featheros.conf <<'EOF'
+HOOKS=(base udev autodetect microcode modconf kms keyboard keymap block filesystems fsck)
+COMPRESSION="zstd"
+EOF
+for m in /usr/lib/modules/*/pkgbase; do
+    k=$(<"$m")
+    sed "s/%PKGBASE%/$k/g" /usr/share/mkinitcpio/hook.preset >"/etc/mkinitcpio.d/$k.preset"
+done
+mkinitcpio -P
+
+# Package signatures: Arch keys + the FeatherOS update key
+pacman-key --init
+pacman-key --populate archlinux
+pacman-key --add /usr/share/featheros/keys/featheros.asc
+pacman-key --lsign-key "$KEYFPR"
+
+# Arch mirrors: GeoIP redirector first, then the Brazilian mirrors
+# (Arch ships the list fully commented out).
+{
+    echo "# FeatherOS: Arch's GeoIP mirror (redirects to a nearby server), then Brazil."
+    echo 'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch'
+    awk '/^## /{ br = ($0 == "## Brazil") } br && /^#Server/ { sub(/^#/, ""); print }' \
+        /etc/pacman.d/mirrorlist
+} >/etc/pacman.d/mirrorlist.new
+mv /etc/pacman.d/mirrorlist.new /etc/pacman.d/mirrorlist
+
+# FeatherOS updates from the desktop
+sed -i "/^\[core\]/i [featheros]\nServer = http://$SERVER/\$arch\n" /etc/pacman.conf
+
+# Boot loader: FeatherOS kernel by default, Arch LTS kernel as backup entry
+# Menu hidden for 2 s: hold Shift or Esc to pick the backup (Arch LTS) kernel.
+sed -i -e 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=2/' \
+       -e 's/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=hidden/' \
+       -e 's/^GRUB_DISTRIBUTOR=.*/GRUB_DISTRIBUTOR="FeatherOS"/' \
+       -e "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"quiet loglevel=3 $EXTRA_CMDLINE\"|" \
+       /etc/default/grub
+cat >>/etc/default/grub <<'EOF'
+
+# FeatherOS
+GRUB_DISABLE_SUBMENU=y
+GRUB_TOP_LEVEL="/boot/vmlinuz-linux-featheros"
+EOF
+if [[ $UEFI == yes ]]; then
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=FeatherOS
+    # Also the fallback path, for firmware that forgets boot entries.
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable
+else
+    grub-install --target=i386-pc "$DISK"
+fi
+grub-mkconfig -o /boot/grub/grub.cfg
+SETUP
+} >"$TARGET/root/featheros-setup.sh"
+arch-chroot "$TARGET" bash /root/featheros-setup.sh
+rm -f "$TARGET/root/featheros-setup.sh"
+cp "$LOG" "$TARGET/var/log/"
+
+step "Finalizando"
+sync
+umount -R "$TARGET"
+trap - ERR
+echo
+echo "FeatherOS instalado em $DISK."
+if [[ $AUTO != 1 ]]; then
+    d --title "Pronto" --yesno "Instalação concluída!\n\nRetire o pendrive e reinicie.\nReiniciar agora?" 10 50 && systemctl reboot
+fi

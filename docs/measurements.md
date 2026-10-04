@@ -56,3 +56,24 @@ there are lower bounds.
 | + Fission (site isolation) off | 1136 MB (not adopted: security) |
 | + software WebRender + WebGL off | 1059-1078 MB (adopted) |
 | Firefox with only about:blank | 610 MB |
+
+## Installed system (2026-10-04)
+
+Installed with `featheros-install` (BIOS/MBR) into a 20 GB virtio disk,
+booted with the disk throttled to 70 MB/s and 120 IOPS (HDD-like):
+
+| Boot | `systemd-analyze` | Kernel -> desktop ready | `free -m` used |
+|---|---|---|---|
+| 1st (machine-id, caches) | 1.6 + 16.8 = 18.4 s | 26 s | 161 MB |
+| 2nd | 1.6 + 9.4 = 11.0 s | 21 s | 159 MB |
+| 3rd | 1.6 + 9.3 = 10.9 s | 21 s | 158 MB |
+
+Steady-state session start: graphical.target 12.0 s -> autologin 12.1 s ->
+user manager 13.7 s -> Xorg 15.1 s -> Openbox 19.1 s -> tint2 21.1 s.
+
+UEFI/GPT install also verified (OVMF): ESP on /boot/efi, NVRAM entry
+"FeatherOS", `free -m` used 120 MB at the text login (no autologin).
+
+Update path verified: `./build.sh packages` on the host, `./serve-updates.sh`,
+then `sudo pacman -Syu` in the installed VM upgraded featheros-desktop with
+its signature checked against the key imported by the installer.

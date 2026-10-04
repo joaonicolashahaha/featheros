@@ -1,72 +1,38 @@
-# --- Base system ---
+# --- Base system
 base
 linux-featheros
+# Arch's stock LTS kernel: backup boot entry (live USB and installed system)
+linux-lts
 intel-ucode
 # Only the firmware the target laptop needs: RTL8191SE Wi-Fi, RTL8111 Ethernet.
 linux-firmware-realtek
 sudo
 iwd
-zram-generator
 
-# --- Live ISO plumbing ---
-mkinitcpio
-mkinitcpio-archiso
-syslinux
-
-# --- Desktop (X11): Xorg modesetting + Openbox, tint2 bar/dock, rofi, picom
-xorg-server
-xorg-xinit
-xf86-video-intel
-xf86-input-libinput
-mesa
-openbox
-tint2
-picom
-rofi
-hsetroot
-xsettingsd
-xdg-user-dirs
-
-# --- Look: WhiteSur (FeatherOS builds, see packages/), Inter + DejaVu
-whitesur-gtk-theme
-whitesur-icon-theme
-whitesur-cursor-theme
-inter-font
-ttf-dejavu
-
-# --- Files and terminal (xfce4-terminal: 60 MB vs Alacritty 107 MB measured)
-pcmanfm
-xfce4-terminal
-
-# --- Laptop keys: volume (ALSA mixer) and brightness
-alsa-utils
-brightnessctl
-
-# --- Audio: PipeWire, socket-activated (starts on first sound, not at boot)
-pipewire
-pipewire-pulse
-pipewire-alsa
-wireplumber
-
-# --- Browser
-firefox
-firefox-i18n-pt-br
-
-# --- Video: mpv + yt-dlp (H.264 <= 720p, see /etc/mpv/mpv.conf)
-mpv
-yt-dlp
-xclip
-
-# --- Editors (Geany: 57 MB vs Lite XL 108 MB measured) + Neovim
-neovim
-geany
+# --- The FeatherOS desktop: session, themes, defaults, and (as dependencies)
+#     Xorg, Openbox, tint2, rofi, picom, PipeWire, Firefox, mpv, Geany, ...
+#     See packages/featheros-desktop/PKGBUILD.
+featheros-desktop
 
 # --- Development
 git
 gcc
 make
 gdb
-python
 python-pip
 nodejs
 npm
+
+# --- Installer (featheros-install)
+arch-install-scripts
+grub
+efibootmgr
+dosfstools
+e2fsprogs
+squashfs-tools
+dialog
+
+# --- Live ISO plumbing
+mkinitcpio
+mkinitcpio-archiso
+syslinux

@@ -9,9 +9,12 @@ unset f
 . /usr/lib/featheros/common.sh
 
 export XCURSOR_THEME=WhiteSur-cursors XCURSOR_SIZE=24
+# FeatherOS's data dir first: its applications/ hides helper programs
+# (Avahi browsers, panel settings, ...) from the app launcher.
+export XDG_DATA_DIRS="/usr/share/featheros/xdg:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 # Let D-Bus-activated services (file manager helpers, portals) reach X.
 dbus-update-activation-environment --systemd DISPLAY XAUTHORITY \
-    XCURSOR_THEME XCURSOR_SIZE 2>/dev/null
+    XCURSOR_THEME XCURSOR_SIZE XDG_DATA_DIRS 2>/dev/null
 
 xdg-user-dirs-update
 featheros_xsettings

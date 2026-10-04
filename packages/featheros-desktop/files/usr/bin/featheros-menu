@@ -8,8 +8,13 @@ else effects="Ligar efeitos visuais"; fi
 square=""
 pgrep -u "$(id -u)" -x picom >/dev/null || square='window { border-radius: 0; }'
 
+# Live USB: offer the installer; installed system: offer updates.
+if [ -d /run/archiso ]; then system="Instalar FeatherOS"; sysicon=drive-harddisk-symbolic
+else system="Atualizar sistema"; sysicon=software-update-available-symbolic; fi
+
 choice=$(printf '%s\0icon\x1f%s\n' \
     "Sobre este computador" computer-symbolic \
+    "$system" "$sysicon" \
     "$appearance" weather-clear-night-symbolic \
     "$effects" preferences-desktop-display-symbolic \
     "Encerrar sessão" system-log-out-symbolic \
@@ -20,9 +25,11 @@ choice=$(printf '%s\0icon\x1f%s\n' \
 
 case $choice in
     0) featheros-about ;;
-    1) featheros-theme toggle ;;
-    2) featheros-effects toggle ;;
-    3) openbox --exit ;;
-    4) systemctl reboot ;;
-    5) systemctl poweroff ;;
+    1) if [ -d /run/archiso ]; then featheros-terminal --title "Instalar FeatherOS" --geometry=100x30 -x sudo featheros-install
+       else featheros-update; fi ;;
+    2) featheros-theme toggle ;;
+    3) featheros-effects toggle ;;
+    4) openbox --exit ;;
+    5) systemctl reboot ;;
+    6) systemctl poweroff ;;
 esac

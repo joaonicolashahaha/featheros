@@ -7,6 +7,7 @@ pacman -Syu --noconfirm --needed archiso
 # Build FeatherOS's own packages (kernel, themes) that the local repo is
 # missing.
 bash /src/scripts/build-packages.sh
+[[ ${1:-} == packages ]] && exit 0
 
 # Rootless containers may not mount devtmpfs, which pacstrap needs. Its
 # unshare mode (-N) bind-mounts device nodes instead; mkarchiso only uses it

@@ -6,3 +6,7 @@
 /kernel/**/*.pkg.tar.zst
 /repo/
 /kernel/cache/
+# Update-signing key: stays on the build machine (back it up, never commit).
+/signing/
+# Exported from signing/ by scripts/build-packages.sh.
+/packages/featheros-desktop/files/usr/share/featheros/keys/

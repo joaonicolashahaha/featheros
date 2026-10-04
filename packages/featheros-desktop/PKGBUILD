@@ -1,0 +1,39 @@
+# FeatherOS desktop: session scripts, themes, artwork and system defaults.
+# Everything here is FeatherOS's own; files/ mirrors the target filesystem.
+#
+# featheros: auto-version
+# scripts/build-packages.sh sets pkgver to the build date whenever the
+# contents of this directory change, so every change becomes an update that
+# installed systems receive with `pacman -Syu`.
+pkgname=featheros-desktop
+pkgver=0
+pkgrel=1
+pkgdesc='FeatherOS desktop: macOS-inspired Openbox session, themes and defaults'
+arch=(any)
+url='https://github.com/'
+license=(GPL-3.0-or-later)
+# Everything the desktop uses. New dependencies added here reach installed
+# systems with the next update.
+depends=(
+  # X11 session
+  xorg-server xorg-xinit xf86-input-libinput xf86-video-intel mesa
+  openbox tint2 picom rofi hsetroot xsettingsd xdg-user-dirs
+  # Look
+  whitesur-gtk-theme whitesur-icon-theme whitesur-cursor-theme
+  inter-font ttf-dejavu
+  # System
+  iwd zram-generator alsa-utils brightnessctl sudo
+  pipewire pipewire-pulse pipewire-alsa wireplumber
+  # Apps
+  pcmanfm xfce4-terminal firefox firefox-i18n-pt-br mpv yt-dlp xclip
+  geany neovim python
+)
+# Files under /etc: local edits are kept on update (new version -> .pacnew).
+backup=($(cd "${BASH_SOURCE[0]%/*}/files" 2>/dev/null && find etc -type f | sort))
+
+package() {
+  cp -a "$startdir/files/." "$pkgdir/"
+  chmod 755 "$pkgdir"/usr/bin/* "$pkgdir"/usr/lib/featheros/autostart \
+    "$pkgdir"/etc/skel/.xinitrc
+  chmod 644 "$pkgdir"/etc/profile.d/*
+}

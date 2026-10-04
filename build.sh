@@ -5,8 +5,10 @@
 #   ./build.sh                 # uses: sudo podman (or sudo docker)
 #   ENGINE=docker ./build.sh   # force a container engine
 #   SUDO= ./build.sh           # rootless podman
+#   ./build.sh packages        # only (re)build the signed update packages
+#                              # (repo/), e.g. before ./serve-updates.sh
 #
-# Output: out/featheros-YYYY.MM.DD-x86_64.iso
+# Output: out/featheros-YYYY.MM.DD-x86_64.iso and repo/x86_64/
 set -euo pipefail
 cd "$(dirname "$(readlink -f "$0")")"
 
@@ -22,4 +24,4 @@ exec $SUDO "$ENGINE" run --rm --privileged \
     -v "$PWD":/src:z \
     -v featheros-pkgcache:/var/cache/pacman/pkg \
     -e HOST_UID="${owner[0]}" -e HOST_GID="${owner[1]}" -e ROOTLESS="$rootless" \
-    "$IMAGE" bash /src/scripts/container-build.sh
+    "$IMAGE" bash /src/scripts/container-build.sh "$@"

@@ -9,7 +9,7 @@ red/yellow/green look. On hover the glyph (x, -, +) is cut out of the circle.
 """
 import os
 
-ROOT = os.path.join(os.path.dirname(__file__), "..", "archiso", "airootfs",
+ROOT = os.path.join(os.path.dirname(__file__), "..", "packages", "featheros-desktop", "files",
                     "usr", "share", "themes")
 N = 12  # button bitmap size (px)
 

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Instalar FeatherOS
+Name[en]=Install FeatherOS
+Comment=Instalar o FeatherOS neste computador (apaga o disco escolhido)
+Exec=featheros-terminal --title "Instalar FeatherOS" --geometry=100x30 -x sudo featheros-install
+Icon=featheros
+Categories=System;
+Terminal=false
