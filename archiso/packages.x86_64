@@ -1,0 +1,14 @@
+# --- Base system ---
+base
+linux-lts
+intel-ucode
+# Only the firmware the target laptop needs: RTL8191SE Wi-Fi, RTL8111 Ethernet.
+linux-firmware-realtek
+sudo
+iwd
+zram-generator
+
+# --- Live ISO plumbing ---
+mkinitcpio
+mkinitcpio-archiso
+syslinux

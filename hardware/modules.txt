@@ -1,0 +1,69 @@
+Module                  Size  Used by
+nls_iso8859_1          16384  1
+uas                    28672  0
+usb_storage            77824  2 uas
+ccm                    20480  6
+snd_hda_codec_si3054    20480  1
+snd_hda_codec_realtek   163840  1
+snd_hda_codec_generic   102400  1 snd_hda_codec_realtek
+ledtrig_audio          16384  1 snd_hda_codec_generic
+snd_hda_intel          53248  3
+snd_intel_dspcfg       28672  1 snd_hda_intel
+i915                 3117056  6
+snd_intel_sdw_acpi     20480  1 snd_intel_dspcfg
+snd_hda_codec         163840  4 snd_hda_codec_generic,snd_hda_intel,snd_hda_codec_realtek,snd_hda_codec_si3054
+rtl8192se             114688  0
+snd_hda_core          110592  5 snd_hda_codec_generic,snd_hda_intel,snd_hda_codec,snd_hda_codec_realtek,snd_hda_codec_si3054
+ttm                    86016  1 i915
+drm_kms_helper        315392  1 i915
+rtl_pci                36864  1 rtl8192se
+cec                    65536  2 drm_kms_helper,i915
+snd_hwdep              16384  1 snd_hda_codec
+rtlwifi               114688  2 rtl_pci,rtl8192se
+mac80211             1257472  3 rtl_pci,rtlwifi,rtl8192se
+rc_core                65536  1 cec
+snd_pcm               147456  4 snd_hda_intel,snd_hda_codec,snd_hda_codec_si3054,snd_hda_core
+snd_seq_midi           20480  0
+snd_seq_midi_event     16384  1 snd_seq_midi
+joydev                 32768  0
+input_leds             16384  0
+serio_raw              20480  0
+coretemp               24576  0
+sha256_ssse3           32768  0
+snd_rawmidi            49152  1 snd_seq_midi
+cfg80211              978944  2 rtlwifi,mac80211
+sha1_ssse3             32768  0
+libarc4                16384  1 mac80211
+snd_seq                77824  2 snd_seq_midi,snd_seq_midi_event
+i2c_algo_bit           16384  1 i915
+snd_seq_device         16384  3 snd_seq,snd_seq_midi,snd_rawmidi
+fb_sys_fops            16384  1 drm_kms_helper
+syscopyarea            16384  1 drm_kms_helper
+snd_timer              40960  2 snd_seq,snd_pcm
+sysfillrect            20480  1 drm_kms_helper
+at24                   24576  0
+sysimgblt              16384  1 drm_kms_helper
+snd                   106496  17 snd_hda_codec_generic,snd_seq,snd_seq_device,snd_hwdep,snd_hda_intel,snd_hda_codec,snd_hda_codec_realtek,snd_timer,snd_hda_codec_si3054,snd_pcm,snd_rawmidi
+soundcore              16384  1 snd
+mac_hid                16384  0
+binfmt_misc            24576  1
+sch_fq_codel           20480  6
+msr                    16384  0
+parport_pc             49152  0
+ppdev                  24576  0
+lp                     28672  0
+drm                   622592  8 drm_kms_helper,i915,ttm
+parport                69632  3 parport_pc,lp,ppdev
+efi_pstore             16384  0
+ip_tables              32768  0
+x_tables               53248  1 ip_tables
+autofs4                49152  2
+ahci                   49152  1
+r8169                 102400  0
+i2c_i801               36864  0
+lpc_ich                28672  0
+psmouse               184320  0
+libahci                49152  1 ahci
+i2c_smbus              20480  1 i2c_i801
+realtek                32768  1
+video                  65536  1 i915

@@ -1,0 +1,2 @@
+# Live session only; the installer deletes this file.
+feather ALL=(ALL:ALL) NOPASSWD: ALL

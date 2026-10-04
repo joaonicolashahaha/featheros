@@ -1,0 +1,6 @@
+/out/
+/vm/
+/kernel/**/src/
+/kernel/**/pkg/
+/kernel/**/*.tar.*
+/kernel/**/*.pkg.tar.zst
