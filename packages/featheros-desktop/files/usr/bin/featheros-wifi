@@ -8,6 +8,13 @@ square=""
 pgrep -u "$(id -u)" -x picom >/dev/null || square='window { border-radius: 0; }'
 menu() { rofi -dmenu -i -theme "$theme" -theme-str "window { location: northeast; anchor: northeast; x-offset: -8px; } $square" "$@"; }
 say()  { rofi -e "$1" -theme "$theme" -theme-str "window { location: center; anchor: center; } $square"; }
+# Password box: the menu theme has no text entry, so use the Spotlight one
+# (entry + prompt, no list). Input is masked.
+ask_password() {
+    rofi -dmenu -password -p "Senha de $1:" \
+        -theme "$FEATHEROS_SHARE/rofi/spotlight-$MODE.rasi" \
+        -theme-str "inputbar { children: [ prompt, entry ]; } listview { lines: 0; } $square" </dev/null
+}
 
 dev=$(iwctl device list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' |
       awk '$0 ~ /station/ { print $1; exit }')
@@ -40,9 +47,14 @@ sec=$(echo "$line" | cut -f2)
 # Known or open networks connect directly; others ask for the password.
 if iwctl known-networks list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | grep -qF "  $ssid  " ||
    [ "$sec" = open ]; then
-    iwctl station "$dev" connect "$ssid" || say "Não foi possível conectar a $ssid."
+    if iwctl station "$dev" connect "$ssid"; then say "Conectado a $ssid."
+    else say "Não foi possível conectar a $ssid."; fi
 else
-    pw=$(menu -password -p "Senha de $ssid" </dev/null) || exit 0
-    iwctl --passphrase "$pw" station "$dev" connect "$ssid" ||
+    pw=$(ask_password "$ssid") || exit 0
+    [ -n "$pw" ] || exit 0
+    if iwctl --passphrase "$pw" station "$dev" connect "$ssid"; then
+        say "Conectado a $ssid."
+    else
         say "Não foi possível conectar a $ssid. Verifique a senha."
+    fi
 fi

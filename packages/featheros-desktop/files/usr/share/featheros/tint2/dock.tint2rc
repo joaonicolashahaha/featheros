@@ -29,17 +29,24 @@ border_color_hover = #000000 0
 panel_items = L:T
 panel_size = 0 58
 panel_shrink = 1
-panel_margin = 0 6
+# Flush with the bottom edge: with a gap, the hidden 2 px trigger strip would
+# float above the edge and the mouse could never reach it.
+panel_margin = 0 0
 panel_padding = 8 6 6
 panel_background_id = 1
 panel_position = bottom center horizontal
 panel_layer = top
 panel_monitor = all
 panel_window_name = featheros-dock
-strut_policy = follow_size
+# Auto-hide: windows get the full screen height; the dock slides up when the
+# mouse touches the bottom edge (a 2 px strip stays as the trigger).
+strut_policy = none
 wm_menu = 0
 panel_dock = 0
-autohide = 0
+autohide = 1
+autohide_show_timeout = 0.15
+autohide_hide_timeout = 0.6
+autohide_height = 2
 mouse_effects = 1
 mouse_hover_icon_asb = 100 0 12
 

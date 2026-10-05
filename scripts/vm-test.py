@@ -82,6 +82,7 @@ qemu = ["qemu-system-x86_64", "-enable-kvm", "-machine", args.machine,
         "-cpu", "Penryn", "-smp", "2", "-m", args.mem, *boot,
         "-nic", "user,model=virtio-net-pci", "-vga", args.vga,
         "-display", "none", "-serial", "stdio", "-no-reboot",
+        "-usb", "-device", "usb-tablet",
         "-monitor", f"unix:{tmp}/mon.sock,server,nowait"]
 if args.disk:
     t = ""
@@ -146,6 +147,14 @@ def keys(spec):
 
 def run(cmd, timeout=None):
     timeout = timeout or args.timeout
+    if cmd.startswith("@mouse "):  # relative move: '@mouse 0 500'
+        dx, dy = cmd.split()[1:3]
+        m = socket.socket(socket.AF_UNIX)
+        m.connect(f"{tmp}/mon.sock")
+        m.sendall(f"mouse_move {dx} {dy}\n".encode())
+        time.sleep(0.5)
+        m.close()
+        return ""
     if cmd.startswith("@keys "):
         return keys(cmd.split(None, 1)[1])
     if cmd.startswith("@shot "):
