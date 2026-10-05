@@ -29,6 +29,8 @@ ap.add_argument("--cmd", action="append", default=[],
                 help="extra command to run and print (repeatable). Special:"
                      " '@shot FILE.png' takes a screenshot, '@sleep N' waits")
 ap.add_argument("--append", default="", help="extra kernel parameters")
+ap.add_argument("--kernel", default="linux-featheros",
+                help="kernel from the ISO: linux-featheros or linux-lts")
 ap.add_argument("--machine", default="q35", help="q35 or pc (i440fx)")
 ap.add_argument("--cdrom-if", default="virtio",
                 help="bus for the ISO: virtio, ide (AHCI on q35) or scsi")
@@ -56,8 +58,8 @@ if not args.boot_disk:
                     "feather/boot/x86_64/*", "-r"], check=True,
                    stdout=subprocess.DEVNULL)
     boot = os.path.join(tmp, "feather/boot/x86_64")
-    kernel = os.path.join(boot, "vmlinuz-linux-featheros")
-    initrd = os.path.join(boot, "initramfs-linux-featheros.img")
+    kernel = os.path.join(boot, f"vmlinuz-{args.kernel}")
+    initrd = os.path.join(boot, f"initramfs-{args.kernel}.img")
     listing = subprocess.run(["7z", "l", args.iso], capture_output=True,
                              text=True).stdout
     label = next((l.split("=", 1)[1].strip() for l in listing.splitlines()

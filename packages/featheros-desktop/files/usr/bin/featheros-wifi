@@ -3,6 +3,15 @@
 # no applet runs in the background.
 . /usr/lib/featheros/common.sh
 
+# One menu at a time. Clicking the icon again while the menu is open closes
+# it (like macOS) instead of starting a second rofi, which made both vanish.
+mkdir -p "$FEATHEROS_CACHE"
+exec 9>"$FEATHEROS_CACHE/wifi.lock"
+if ! flock -n 9; then
+    pkill -u "$(id -u)" -f 'rofi .*-p Wi-Fi'
+    exit 0
+fi
+
 theme="$FEATHEROS_SHARE/rofi/menu-$MODE.rasi"
 square=""
 pgrep -u "$(id -u)" -x picom >/dev/null || square='window { border-radius: 0; }'
@@ -13,26 +22,45 @@ say()  { rofi -e "$1" -theme "$theme" -theme-str "window { location: center; anc
 ask_password() {
     rofi -dmenu -password -p "Senha de $1:" \
         -theme "$FEATHEROS_SHARE/rofi/spotlight-$MODE.rasi" \
-        -theme-str "inputbar { children: [ prompt, entry ]; } listview { lines: 0; } $square" </dev/null
+        -theme-str "inputbar { children: [ prompt, entry ]; } entry { placeholder: \"\"; } listview { lines: 0; } $square" </dev/null
 }
 
 dev=$(iwctl device list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' |
       awk '$0 ~ /station/ { print $1; exit }')
 [ -n "$dev" ] || { say "Nenhum adaptador Wi-Fi encontrado."; exit 0; }
 
-iwctl station "$dev" scan >/dev/null 2>&1
-sleep 2
 # get-networks columns: [>] SSID  security  signal(****). The SSID may
 # contain spaces, so take the last two fields off the end.
-list=$(iwctl station "$dev" get-networks 2>/dev/null |
-       sed 's/\x1b\[[0-9;]*m//g' | sed '1,4d;/^[[:space:]]*$/d' |
-       awk '{ cur = ($1 == ">") ? "✓ " : "";
-              if (cur != "") $1 = "";
-              sig = $NF; sec = $(NF-1); $NF = ""; $(NF-1) = "";
-              sub(/^ +/, ""); sub(/ +$/, "");
-              printf "%s%s\t%s\t%s\n", cur, $0, sec, sig }')
+networks() {
+    iwctl station "$dev" get-networks 2>/dev/null |
+        sed 's/\x1b\[[0-9;]*m//g' | sed '1,4d;/^[[:space:]]*$/d' |
+        grep -v 'No networks available' |
+        awk '{ cur = ($1 == ">") ? "✓ " : "";
+               if (cur != "") $1 = "";
+               sig = $NF; sec = $(NF-1); $NF = ""; $(NF-1) = "";
+               sub(/^ +/, ""); sub(/ +$/, "");
+               printf "%s%s\t%s\t%s\n", cur, $0, sec, sig }'
+}
 
-choice=$( { echo "Desconectar"; echo "$list" | awk -F'\t' 'NF { printf "%-28s %s  %s\n", $1, $3, ($2 == "open" ? "" : "🔒") }'; } |
+# Show what iwd already knows right away (it scans on its own); only wait
+# for a fresh scan when it knows nothing yet. Refresh in the background.
+list=$(networks)
+if [ -z "$list" ]; then
+    iwctl station "$dev" scan >/dev/null 2>&1
+    sleep 3
+    list=$(networks)
+else
+    iwctl station "$dev" scan >/dev/null 2>&1 &
+fi
+[ -n "$list" ] || { say "Nenhuma rede Wi-Fi encontrada."; exit 0; }
+
+# Let the click that opened the menu finish: its button release arriving
+# after rofi appears counts as a click outside the menu and closes it.
+sleep 0.3
+
+# "Desconectar" last and only when connected, so a stray click can't hit it.
+choice=$( { echo "$list" | awk -F'\t' 'NF { printf "%-28s %s  %s\n", $1, $3, ($2 == "open" ? "" : "🔒") }'
+            case $list in *"✓ "*) echo "Desconectar" ;; esac; } |
           menu -p "Wi-Fi" -format s)
 [ -n "$choice" ] || exit 0
 if [ "$choice" = Desconectar ]; then
