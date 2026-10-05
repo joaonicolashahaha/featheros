@@ -5,6 +5,8 @@
 if [ "$MODE" = dark ]; then appearance="Aparência clara"; else appearance="Aparência escura"; fi
 if pgrep -u "$(id -u)" -x picom >/dev/null; then effects="Desligar efeitos visuais"
 else effects="Ligar efeitos visuais"; fi
+if systemctl is-active --quiet sshd.service; then remote="Desligar acesso remoto"
+else remote="Ligar acesso remoto"; fi
 square=""
 pgrep -u "$(id -u)" -x picom >/dev/null || square='window { border-radius: 0; }'
 
@@ -17,6 +19,7 @@ choice=$(printf '%s\0icon\x1f%s\n' \
     "$system" "$sysicon" \
     "$appearance" weather-clear-night-symbolic \
     "$effects" preferences-desktop-display-symbolic \
+    "$remote" network-server-symbolic \
     "Encerrar sessão" system-log-out-symbolic \
     "Reiniciar" system-reboot-symbolic \
     "Desligar" system-shutdown-symbolic |
@@ -29,7 +32,8 @@ case $choice in
        else featheros-update; fi ;;
     2) featheros-theme toggle ;;
     3) featheros-effects toggle ;;
-    4) openbox --exit ;;
-    5) systemctl reboot ;;
-    6) systemctl poweroff ;;
+    4) featheros-remote toggle ;;
+    5) openbox --exit ;;
+    6) systemctl reboot ;;
+    7) systemctl poweroff ;;
 esac

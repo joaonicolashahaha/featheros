@@ -1,0 +1,40 @@
+#!/bin/sh
+# Remote access for the FeatherOS build machine (SSH, key only):
+#   featheros-remote on|off|toggle|status
+# Off by default and after every reboot (sshd is started, never enabled).
+. /usr/lib/featheros/common.sh
+
+active() { systemctl is-active --quiet sshd.service; }
+square=""
+pgrep -u "$(id -u)" -x picom >/dev/null || square='window { border-radius: 0; }'
+say() {
+    if [ -n "$DISPLAY" ]; then
+        rofi -e "$1" -markup -theme "$FEATHEROS_SHARE/rofi/menu-$MODE.rasi" \
+            -theme-str "window { location: center; anchor: center; width: 460px; } $square"
+    else
+        printf '%s\n' "$1" | sed 's/<[^>]*>//g'
+    fi
+}
+
+case $1 in
+    toggle) if active; then set -- off; else set -- on; fi ;;
+esac
+case $1 in
+    on)
+        sudo -n systemctl start sshd.service || { say "Não foi possível ligar o acesso remoto."; exit 1; }
+        ip=$(ip -4 -o addr show scope global | awk '{ sub(/\/.*/, "", $4); print $4; exit }')
+        say "<b>Acesso remoto ligado</b>
+Endereço: $(id -un)@${ip:-?}
+
+Só o computador que gerou as atualizações pode entrar.
+Desliga sozinho ao reiniciar."
+        ;;
+    off)
+        sudo -n systemctl stop sshd.service
+        say "Acesso remoto desligado."
+        ;;
+    status)
+        if active; then echo on; else echo off; fi
+        ;;
+    *) echo "usage: featheros-remote on|off|toggle|status" >&2; exit 2 ;;
+esac

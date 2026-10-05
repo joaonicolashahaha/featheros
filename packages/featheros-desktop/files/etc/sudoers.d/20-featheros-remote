@@ -1,0 +1,3 @@
+# Let users in wheel switch remote access on/off from the feather menu
+# without typing a password (only these two exact commands).
+%wheel ALL=(root) NOPASSWD: /usr/bin/systemctl start sshd.service, /usr/bin/systemctl stop sshd.service

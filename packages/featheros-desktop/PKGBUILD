@@ -27,6 +27,8 @@ depends=(
   # Apps
   pcmanfm xfce4-terminal firefox firefox-i18n-pt-br mpv yt-dlp xclip
   geany neovim python
+  # Remote access (off by default): SSH + screenshots + mouse/keyboard
+  openssh maim xdotool
 )
 # Files under /etc: local edits are kept on update (new version -> .pacnew).
 backup=($(cd "${BASH_SOURCE[0]%/*}/files" 2>/dev/null && find etc -type f | sort))
@@ -36,4 +38,7 @@ package() {
   chmod 755 "$pkgdir"/usr/bin/* "$pkgdir"/usr/lib/featheros/autostart \
     "$pkgdir"/etc/skel/.xinitrc
   chmod 644 "$pkgdir"/etc/profile.d/*
+  # sudo ignores rule files that are not exactly like this.
+  chmod 750 "$pkgdir"/etc/sudoers.d
+  chmod 440 "$pkgdir"/etc/sudoers.d/*
 }

@@ -47,6 +47,8 @@ ap.add_argument("--user", default="feather", help="serial console login")
 ap.add_argument("--password", default="", help="password for --user")
 ap.add_argument("--disk-mbps", type=int, default=0,
                 help="limit --disk to N MB/s and 120 IOPS (HDD-like)")
+ap.add_argument("--ssh-port", type=int, default=0,
+                help="forward this host port to the VM's SSH port (22)")
 ap.add_argument("--timeout", type=int, default=120,
                 help="per-command timeout in seconds")
 args = ap.parse_args()
@@ -82,7 +84,9 @@ boot = [] if args.boot_disk else ["-kernel", kernel, "-initrd", initrd,
                                   "-append", cmdline, *cdrom]
 qemu = ["qemu-system-x86_64", "-enable-kvm", "-machine", args.machine,
         "-cpu", "Penryn", "-smp", "2", "-m", args.mem, *boot,
-        "-nic", "user,model=virtio-net-pci", "-vga", args.vga,
+        "-nic", "user,model=virtio-net-pci" +
+        (f",hostfwd=tcp:127.0.0.1:{args.ssh_port}-:22" if args.ssh_port else ""),
+        "-vga", args.vga,
         "-display", "none", "-serial", "stdio", "-no-reboot",
         "-usb", "-device", "usb-tablet",
         "-monitor", f"unix:{tmp}/mon.sock,server,nowait"]
@@ -149,6 +153,10 @@ def keys(spec):
 
 def run(cmd, timeout=None):
     timeout = timeout or args.timeout
+    if cmd.startswith("@host "):  # run on the host, e.g. ssh into the VM
+        r = subprocess.run(cmd[6:], shell=True, capture_output=True, text=True,
+                           timeout=timeout)
+        return (r.stdout + r.stderr).rstrip()
     if cmd.startswith("@mouse "):  # relative move: '@mouse 0 500'
         dx, dy = cmd.split()[1:3]
         m = socket.socket(socket.AF_UNIX)

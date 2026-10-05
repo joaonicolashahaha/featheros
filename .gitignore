@@ -10,3 +10,4 @@
 /signing/
 # Exported from signing/ by scripts/build-packages.sh.
 /packages/featheros-desktop/files/usr/share/featheros/keys/
+/packages/featheros-desktop/files/usr/share/featheros/remote/

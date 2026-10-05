@@ -36,6 +36,19 @@ mkdir -p "$(dirname "$pubkey")"
 gpg --armor --export "$keyid" >"$pubkey.new"
 if cmp -s "$pubkey.new" "$pubkey"; then rm "$pubkey.new"; else mv "$pubkey.new" "$pubkey"; fi
 
+# --- Remote-access SSH key (featheros-remote) ---------------------------------
+# The private key stays here; installed systems only accept its public half.
+sshkey=/src/signing/ssh/featheros_remote
+authkeys=/src/packages/featheros-desktop/files/usr/share/featheros/remote/authorized_keys
+if [[ ! -f $sshkey ]]; then
+    echo "==> Creating the remote-access SSH key (signing/ssh)"
+    pacman -S --noconfirm --needed openssh >/dev/null
+    mkdir -p "$(dirname "$sshkey")" && chmod 700 "$(dirname "$sshkey")"
+    ssh-keygen -q -t ed25519 -N '' -C "featheros-remote" -f "$sshkey"
+fi
+mkdir -p "$(dirname "$authkeys")"
+if ! cmp -s "$sshkey.pub" "$authkeys"; then cp "$sshkey.pub" "$authkeys"; fi
+
 # --- Helpers -----------------------------------------------------------------
 # Files in $repo that belong to package $1 (exact pkgname match).
 pkg_files() {
