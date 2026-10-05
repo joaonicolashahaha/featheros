@@ -34,6 +34,6 @@ case $choice in
     3) featheros-effects toggle ;;
     4) featheros-remote toggle ;;
     5) openbox --exit ;;
-    6) systemctl reboot ;;
-    7) systemctl poweroff ;;
+    6) sudo -n systemctl reboot ;;
+    7) sudo -n systemctl poweroff ;;
 esac

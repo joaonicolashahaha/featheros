@@ -1,0 +1,4 @@
+# Restart / shut down / suspend from the feather menu. Without polkit (not
+# installed: ~8 MB of RAM), logind refuses these to normal users, so users
+# in wheel may run exactly these commands without a password.
+%wheel ALL=(root) NOPASSWD: /usr/bin/systemctl reboot, /usr/bin/systemctl poweroff, /usr/bin/systemctl suspend
