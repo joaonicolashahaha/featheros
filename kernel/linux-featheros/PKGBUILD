@@ -6,7 +6,7 @@
 
 pkgbase=linux-featheros
 pkgver=6.18.55
-pkgrel=3
+pkgrel=4
 pkgdesc='FeatherOS LTS Linux'
 url='https://www.kernel.org'
 arch=(

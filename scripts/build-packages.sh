@@ -91,7 +91,9 @@ build_one() {
     if [[ $name == linux-featheros ]]; then
         pacman -S --noconfirm --needed bc cpio pahole python perl libelf openssl
         bash /src/scripts/kernel-config.sh
-        su builder -c "gpg --batch --import $dir/keys/pgp/*.asc" 2>/dev/null
+        # GNUPGHOME (the FeatherOS signing keyring) must not leak into the
+        # build user: it verifies the kernel sources with its own keyring.
+        su builder -c "unset GNUPGHOME; gpg --batch --import $dir/keys/pgp/*.asc" 2>/dev/null
     fi
     local build=/tmp/build/$name
     rm -rf "$build" && mkdir -p /tmp/build && cp -rL "$dir" "$build"
@@ -106,7 +108,7 @@ build_one() {
         local mk; mk=$(bash -c "source '$dir/PKGBUILD' >/dev/null; echo \${makedepends[*]}")
         [[ -n $mk ]] && pacman -S --noconfirm --needed $mk >/dev/null
     fi
-    su builder -c "cd $build && SRCDEST=/src/kernel/cache PKGDEST=$build/out \
+    su builder -c "unset GNUPGHOME; cd $build && SRCDEST=/src/kernel/cache PKGDEST=$build/out \
         MAKEFLAGS=-j$(nproc) makepkg --noconfirm --cleanbuild $deps" </dev/null
     # Replace older builds of every package this PKGBUILD produces.
     local out n

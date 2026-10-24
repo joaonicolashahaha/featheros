@@ -29,6 +29,8 @@ depends=(
   geany neovim python
   # Remote access (off by default): SSH + screenshots + mouse/keyboard
   openssh maim xdotool
+  # USB Wi-Fi adapters that start as a "driver CD" (e.g. Realtek 0bda:1a2b)
+  usb_modeswitch
 )
 # featheros-dockd (dockd/; not src/, which makepkg owns): the dock's "intelligent hide" helper.
 makedepends=(gcc libx11)
