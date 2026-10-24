@@ -1,0 +1,4 @@
+# FeatherOS: when a USB Wi-Fi adapter is plugged in, switch the built-in
+# card's radio off (and back on when it is unplugged).
+# See /usr/lib/featheros/wifi-prefer-usb.
+ACTION=="add|remove", SUBSYSTEM=="net", ENV{DEVTYPE}=="wlan", RUN+="/usr/lib/featheros/wifi-prefer-usb"

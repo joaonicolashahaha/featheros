@@ -17,7 +17,7 @@ issues are found, we have a fail-safe.
  1 file changed, 24 insertions(+)
 
 diff --git a/kernel/fork.c b/kernel/fork.c
-index 8b1238d69291..c3e8b7172dee 100644
+index 7be5736d44c7..f5fefe439c7d 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
 @@ -124,6 +124,12 @@
@@ -33,7 +33,7 @@ index 8b1238d69291..c3e8b7172dee 100644
  /*
   * Minimum number of threads to boot the kernel
   */
-@@ -1993,6 +1999,11 @@ __latent_entropy struct task_struct *copy_process(
+@@ -1998,6 +2004,11 @@ __latent_entropy struct task_struct *copy_process(
  			return ERR_PTR(-EINVAL);
  	}
  
@@ -45,7 +45,7 @@ index 8b1238d69291..c3e8b7172dee 100644
  	/*
  	 * Force any signals received before this point to be delivered
  	 * before the fork happens.  Collect up signals sent to multiple
-@@ -3026,6 +3037,10 @@ static int check_unshare_flags(unsigned long unshare_flags)
+@@ -3027,6 +3038,10 @@ static int check_unshare_flags(unsigned long unshare_flags)
  		if (!current_is_single_threaded())
  			return -EINVAL;
  	}
@@ -56,7 +56,7 @@ index 8b1238d69291..c3e8b7172dee 100644
  
  	return 0;
  }
-@@ -3259,6 +3274,15 @@ static const struct ctl_table fork_sysctl_table[] = {
+@@ -3260,6 +3275,15 @@ static const struct ctl_table fork_sysctl_table[] = {
  		.mode		= 0644,
  		.proc_handler	= sysctl_max_threads,
  	},

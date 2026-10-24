@@ -1,0 +1,24 @@
+#!/bin/sh
+# Prefer a USB Wi-Fi adapter over the built-in card (run by udev whenever a
+# Wi-Fi interface appears or disappears). The laptop's RTL8191SE receives at
+# 0.3-0.4 MB/s; with both cards up, both connect and traffic may still use
+# the slow one. While a USB adapter is present the built-in radio is
+# soft-blocked (rfkill); when the adapter is unplugged it comes back.
+
+usb=no
+for n in /sys/class/net/*; do
+    [ -e "$n/phy80211" ] || continue
+    # On "remove" the leaving interface may still be listed: skip it.
+    [ "$ACTION" = remove ] && [ "${n##*/}" = "$INTERFACE" ] && continue
+    case $(readlink -f "$n/device") in */usb*) usb=yes ;; esac
+done
+
+[ "$usb" = yes ] && block=1 || block=0
+for n in /sys/class/net/*; do
+    [ -e "$n/phy80211" ] || continue
+    case $(readlink -f "$n/device") in */usb*) continue ;; esac
+    for r in "$n"/phy80211/rfkill*/soft; do
+        [ -w "$r" ] && echo "$block" >"$r"
+    done
+done
+exit 0

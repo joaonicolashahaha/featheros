@@ -5,8 +5,8 @@
 # package, no Rust, no BTF/debug info (much faster build).
 
 pkgbase=linux-featheros
-pkgver=6.18.55
-pkgrel=4
+pkgver=6.18.58
+pkgrel=1
 pkgdesc='FeatherOS LTS Linux'
 url='https://www.kernel.org'
 arch=(
@@ -44,9 +44,9 @@ validpgpkeys=(
   ABAF11C65A2970B130ABE3C479BE3E4300411886  # Linus Torvalds
   647F28654894E3BD457199BE38DBBDC86092693E  # Greg Kroah-Hartman
 )
-sha256sums=('f410638061a165c12f42ab871d2f3fcd525515359b5faeee80969cff84524df9'
+sha256sums=('069b19f9032c4dac8149ae4b6520c35debca0f42a9f6d52ee55ba6ca9b818013'
             'SKIP'
-            '0bb3b4cda53db35c10e0a34defb5f52f3c91895d7b4a9f93b3f40f5401a71e02'
+            'fc4525901142589d4bf7d2b8d1bc474647bff879e610147cd3498eca935a2289'
             'SKIP')
 
 export KBUILD_BUILD_HOST=featheros

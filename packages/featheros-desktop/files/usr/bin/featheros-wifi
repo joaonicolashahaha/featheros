@@ -25,8 +25,21 @@ ask_password() {
         -theme-str "inputbar { children: [ prompt, entry ]; } entry { placeholder: \"\"; } listview { lines: 0; } $square" </dev/null
 }
 
-dev=$(iwctl device list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' |
-      awk '$0 ~ /station/ { print $1; exit }')
+# Station device to use: a USB adapter if there is one (the built-in card is
+# switched off then, see /usr/lib/featheros/wifi-prefer-usb), skipping
+# radios that are blocked.
+dev=""
+for d in $(iwctl device list 2>/dev/null | sed 's/\x1b\[[0-9;]*m//g' | awk '/station/ { print $1 }'); do
+    blocked=no
+    for r in /sys/class/net/"$d"/phy80211/rfkill*/soft /sys/class/net/"$d"/phy80211/rfkill*/hard; do
+        [ "$(cat "$r" 2>/dev/null)" = 1 ] && blocked=yes
+    done
+    [ $blocked = yes ] && continue
+    case $(readlink -f /sys/class/net/"$d"/device) in
+        */usb*) dev=$d; break ;;
+        *) [ -n "$dev" ] || dev=$d ;;
+    esac
+done
 [ -n "$dev" ] || { say "Nenhum adaptador Wi-Fi encontrado."; exit 0; }
 
 # get-networks columns: [>] SSID  security  signal(****). The SSID may
