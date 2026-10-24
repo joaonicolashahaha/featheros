@@ -33,6 +33,8 @@ depends=(
   usb_modeswitch
   # Wi-Fi regulatory database (Brazil: /etc/modprobe.d/featheros-wifi-regdom.conf)
   wireless-regdb
+  # The "Atualizações" app (GTK 3 from Python)
+  python-gobject
 )
 # featheros-dockd (dockd/; not src/, which makepkg owns): the dock's "intelligent hide" helper.
 makedepends=(gcc libx11)
@@ -50,6 +52,7 @@ package() {
   install -Dm755 featheros-dockd "$pkgdir/usr/bin/featheros-dockd"
   chmod 755 "$pkgdir"/usr/bin/* "$pkgdir"/usr/lib/featheros/autostart \
     "$pkgdir"/usr/lib/featheros/wifi-prefer-usb \
+    "$pkgdir"/usr/lib/featheros/update-system \
     "$pkgdir"/etc/skel/.xinitrc
   chmod 644 "$pkgdir"/etc/profile.d/*
   # sudo ignores rule files that are not exactly like this.

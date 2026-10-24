@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Root helper for the "Atualizações" app (sudo, no password, for wheel):
+#
+#   update-system check   list pending updates, one per line:
+#                         PKG <tab> name <tab> old <tab> new <tab> repo <tab> description
+#   update-system apply   install them: pacman -Syu --noconfirm
+#
+# "check" syncs a separate copy of the package lists, so checking never
+# leaves the system half-updated. The FeatherOS repository is served by the
+# build machine, which may be switched off: then it is left out (and a
+# "NOTE featheros-offline" line printed) instead of failing the whole update.
+set -uo pipefail
+export LC_ALL=C
+conf=/etc/pacman.conf
+checkdb=/var/lib/featheros/checkdb
+
+featheros_url() {
+    sed -n '/^\[featheros\]/,/^\[/s/^Server *= *//p' "$conf" | head -1 |
+        sed 's/\$arch/x86_64/g; s/\$repo/featheros/g'
+}
+
+# pacman.conf to use: the real one, or a copy without [featheros] when its
+# server does not answer.
+pick_conf() {
+    local url; url=$(featheros_url)
+    if [[ -z $url ]] || curl -sf -o /dev/null --max-time 5 "$url/featheros.db"; then
+        echo "$conf"
+        return
+    fi
+    local tmp; tmp=$(mktemp /tmp/featheros-pacman.XXXXXX)
+    awk '/^\[featheros\]/ { skip = 1; next } /^\[/ { skip = 0 } !skip' "$conf" >"$tmp"
+    echo "$tmp"
+}
+
+case ${1:-} in
+check)
+    c=$(pick_conf)
+    [[ $c == "$conf" ]] || echo "NOTE featheros-offline"
+    mkdir -p "$checkdb"
+    ln -sfn /var/lib/pacman/local "$checkdb/local"
+    if ! pacman -Sy --config "$c" --dbpath "$checkdb" --logfile /dev/null >/dev/null 2>&1; then
+        echo "ERROR sync"
+        exit 1
+    fi
+    mapfile -t names < <(pacman -Qu --config "$c" --dbpath "$checkdb" 2>/dev/null |
+                         awk '$NF != "[ignored]" { print $1 }')
+    ((${#names[@]})) || exit 0
+    declare -A old
+    while read -r n o _ new _; do old[$n]=$o; done < <(pacman -Qu --config "$c" --dbpath "$checkdb" 2>/dev/null)
+    # One pacman call for all descriptions (one per package is slow here).
+    pacman -Si --config "$c" --dbpath "$checkdb" "${names[@]}" 2>/dev/null |
+    awk -F' *: ' -v OFS='\t' '
+        /^Repository/  { repo = $2 }
+        /^Name/        { name = $2 }
+        /^Version/     { ver = $2 }
+        /^Description/ { desc = $2 }
+        /^$/ && name != "" { print name, ver, repo, desc; name = "" }
+        END { if (name != "") print name, ver, repo, desc }' |
+    while IFS=$'\t' read -r n ver repo desc; do
+        printf 'PKG\t%s\t%s\t%s\t%s\t%s\n' "$n" "${old[$n]:-}" "$ver" "$repo" "$desc"
+    done
+    [[ $c == "$conf" ]] || rm -f "$c"
+    ;;
+apply)
+    c=$(pick_conf)
+    [[ $c == "$conf" ]] ||
+        echo ":: O servidor de atualizações do FeatherOS não respondeu; atualizando só os pacotes do Arch."
+    pacman -Syu --noconfirm --config "$c"
+    status=$?
+    [[ $c == "$conf" ]] || rm -f "$c"
+    exit $status
+    ;;
+*)
+    echo "usage: update-system check|apply" >&2
+    exit 2
+    ;;
+esac

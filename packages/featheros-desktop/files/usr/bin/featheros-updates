@@ -1,0 +1,362 @@
+#!/usr/bin/env python3
+"""Atualizações: check, show and install FeatherOS and Arch Linux updates.
+
+Pending updates (with descriptions), FeatherOS news (change notes served by
+the build machine with the packages) and the update history. Installing
+needs no password and no confirmation: the root work is done by
+/usr/lib/featheros/update-system, which wheel users may run through sudo.
+"""
+import os
+import re
+import subprocess
+import threading
+import urllib.request
+from datetime import datetime
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+from gi.repository import GLib, Gtk, Pango  # noqa: E402
+
+HELPER = "/usr/lib/featheros/update-system"
+PACMAN_LOG = "/var/log/pacman.log"
+ENV_C = dict(os.environ, LC_ALL="C")
+
+
+def esc(text):
+    return GLib.markup_escape_text(text or "")
+
+
+def featheros_server():
+    """Base URL of the FeatherOS repository, from pacman.conf."""
+    try:
+        with open("/etc/pacman.conf") as f:
+            inside = False
+            for line in f:
+                line = line.strip()
+                if line.startswith("["):
+                    inside = line == "[featheros]"
+                elif inside and line.startswith("Server"):
+                    return line.split("=", 1)[1].strip().replace("$arch", "x86_64")
+    except OSError:
+        pass
+    return None
+
+
+def describe(names):
+    """{name: description} for installed packages (one pacman call)."""
+    if not names:
+        return {}
+    out = subprocess.run(["pacman", "-Qi", *names], capture_output=True,
+                         text=True, env=ENV_C).stdout
+    result, name = {}, None
+    for line in out.splitlines():
+        if line.startswith("Name"):
+            name = line.split(":", 1)[1].strip()
+        elif line.startswith("Description") and name:
+            result[name] = line.split(":", 1)[1].strip()
+    return result
+
+
+def read_history(limit=80):
+    """Recent package changes from pacman.log, newest first."""
+    pat = re.compile(r"^\[(\S+)\] \[ALPM\] (upgraded|installed|removed) (\S+) \((.+)\)$")
+    entries = []
+    try:
+        with open(PACMAN_LOG, errors="replace") as f:
+            for line in f:
+                m = pat.match(line.strip())
+                if m:
+                    entries.append(m.groups())
+    except OSError:
+        return []
+    return entries[-limit:][::-1]
+
+
+def last_featheros_update():
+    for when, action, name, _ in read_history(400):
+        if name == "featheros-desktop" and action in ("upgraded", "installed"):
+            return when
+    return ""
+
+
+class Updates(Gtk.ApplicationWindow):
+    def __init__(self, app):
+        super().__init__(application=app, title="Atualizações")
+        self.set_default_size(680, 520)
+        self.set_icon_name("system-software-update")
+        self.pending = []
+
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10,
+                        margin=14)
+        self.add(outer)
+
+        # Status line: spinner + text
+        top = Gtk.Box(spacing=10)
+        self.spinner = Gtk.Spinner()
+        self.status = Gtk.Label(xalign=0)
+        self.status.set_line_wrap(True)
+        top.pack_start(self.spinner, False, False, 0)
+        top.pack_start(self.status, True, True, 0)
+        outer.pack_start(top, False, False, 0)
+
+        # Pages: available / news / history
+        self.stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.NONE)
+        switcher = Gtk.StackSwitcher(stack=self.stack, halign=Gtk.Align.CENTER)
+        outer.pack_start(switcher, False, False, 0)
+        outer.pack_start(self.stack, True, True, 0)
+        self.available = self._list_page("available", "Disponíveis")
+        self.news = self._list_page("news", "Novidades do FeatherOS")
+        self.history = self._list_page("history", "Histórico")
+
+        # Progress output while updating
+        self.output = Gtk.TextView(editable=False, monospace=True,
+                                   wrap_mode=Gtk.WrapMode.CHAR)
+        out_scroll = Gtk.ScrolledWindow(min_content_height=140)
+        out_scroll.add(self.output)
+        self.output_box = Gtk.Expander(label="Detalhes")
+        self.output_box.add(out_scroll)
+        self.progress = Gtk.ProgressBar()
+        outer.pack_start(self.progress, False, False, 0)
+        outer.pack_start(self.output_box, False, False, 0)
+
+        # Buttons
+        buttons = Gtk.Box(spacing=8, halign=Gtk.Align.END)
+        self.reboot_btn = Gtk.Button(label="Reiniciar agora")
+        self.reboot_btn.connect("clicked", lambda *_: subprocess.Popen(
+            ["sudo", "-n", "systemctl", "reboot"]))
+        self.check_btn = Gtk.Button(label="Procurar de novo")
+        self.check_btn.connect("clicked", lambda *_: self.check())
+        self.apply_btn = Gtk.Button(label="Atualizar agora")
+        self.apply_btn.get_style_context().add_class("suggested-action")
+        self.apply_btn.connect("clicked", lambda *_: self.apply())
+        for b in (self.reboot_btn, self.check_btn, self.apply_btn):
+            buttons.pack_start(b, False, False, 0)
+        outer.pack_start(buttons, False, False, 0)
+
+        self.show_all()
+        self.progress.hide()
+        self.output_box.hide()
+        self.reboot_btn.set_visible(self.needs_reboot())
+        self.fill_history()
+        self.check()
+
+    # --- helpers -------------------------------------------------------------
+    def _list_page(self, name, title):
+        box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
+        scroll = Gtk.ScrolledWindow(hscrollbar_policy=Gtk.PolicyType.NEVER)
+        scroll.add(box)
+        frame = Gtk.Frame()
+        frame.add(scroll)
+        self.stack.add_titled(frame, name, title)
+        return box
+
+    @staticmethod
+    def _clear(box):
+        for child in box.get_children():
+            box.remove(child)
+
+    @staticmethod
+    def _row(icon, title, right, body, dim_body=True):
+        grid = Gtk.Grid(column_spacing=10, row_spacing=2, margin=8)
+        img = Gtk.Image.new_from_icon_name(icon, Gtk.IconSize.LARGE_TOOLBAR)
+        img.set_valign(Gtk.Align.START)
+        grid.attach(img, 0, 0, 1, 2)
+        t = Gtk.Label(xalign=0, hexpand=True)
+        t.set_markup(f"<b>{esc(title)}</b>")
+        t.set_ellipsize(Pango.EllipsizeMode.END)
+        grid.attach(t, 1, 0, 1, 1)
+        if right:
+            r = Gtk.Label(xalign=1)
+            r.set_markup(f"<small>{esc(right)}</small>")
+            r.get_style_context().add_class("dim-label")
+            grid.attach(r, 2, 0, 1, 1)
+        if body:
+            b = Gtk.Label(xalign=0, wrap=True, selectable=True)
+            b.set_markup(f"<small>{esc(body)}</small>")
+            b.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
+            if dim_body:
+                b.get_style_context().add_class("dim-label")
+            grid.attach(b, 1, 1, 2, 1)
+        row = Gtk.ListBoxRow()
+        row.add(grid)
+        return row
+
+    @staticmethod
+    def _placeholder(box, text):
+        label = Gtk.Label(label=text, margin=24)
+        label.get_style_context().add_class("dim-label")
+        box.add(label)
+
+    def busy(self, on, text):
+        self.status.set_text(text)
+        (self.spinner.start if on else self.spinner.stop)()
+        self.check_btn.set_sensitive(not on)
+        self.apply_btn.set_sensitive(not on and bool(self.pending))
+
+    @staticmethod
+    def needs_reboot():
+        # The running kernel's modules are gone once a new kernel is installed.
+        return not os.path.isdir(f"/usr/lib/modules/{os.uname().release}")
+
+    # --- checking --------------------------------------------------------------
+    def check(self):
+        self.busy(True, "Procurando atualizações…")
+        threading.Thread(target=self._check_thread, daemon=True).start()
+        threading.Thread(target=self._news_thread, daemon=True).start()
+
+    def _check_thread(self):
+        r = subprocess.run(["sudo", "-n", HELPER, "check"], capture_output=True,
+                           text=True)
+        pkgs, offline, error = [], False, r.returncode != 0
+        for line in r.stdout.splitlines():
+            parts = line.split("\t")
+            if parts[0] == "PKG" and len(parts) >= 6:
+                pkgs.append(parts[1:6])
+            elif line.startswith("NOTE featheros-offline"):
+                offline = True
+            elif line.startswith("ERROR"):
+                error = True
+        GLib.idle_add(self._show_pending, pkgs, offline, error)
+
+    def _show_pending(self, pkgs, offline, error):
+        self.pending = pkgs
+        self._clear(self.available)
+        # FeatherOS's own packages first.
+        pkgs.sort(key=lambda p: (p[3] != "featheros", p[0]))
+        for name, old, new, repo, desc in pkgs:
+            icon = "featheros" if repo == "featheros" else "system-software-install"
+            self.available.add(self._row(icon, name, f"{old}  →  {new}", desc))
+        if error:
+            text = "Não foi possível procurar atualizações. Verifique a conexão com a internet."
+            self._placeholder(self.available, text)
+        elif not pkgs:
+            text = "O sistema está atualizado."
+            self._placeholder(self.available, text)
+        else:
+            own = sum(1 for p in pkgs if p[3] == "featheros")
+            text = (f"{len(pkgs)} atualização disponível" if len(pkgs) == 1
+                    else f"{len(pkgs)} atualizações disponíveis")
+            if own:
+                text += f" ({own} do FeatherOS)"
+        if offline:
+            text += "\nO servidor de atualizações do FeatherOS não respondeu; só as do Arch Linux aparecem."
+        self.available.show_all()
+        self.busy(False, text)
+        return False
+
+    def _news_thread(self):
+        server = featheros_server()
+        items, ok = [], False
+        if server:
+            try:
+                with urllib.request.urlopen(f"{server}/featheros-news.txt", timeout=6) as f:
+                    raw = f.read().decode("utf-8", "replace")
+                for rec in raw.split("\x1e"):
+                    fields = rec.strip("\n").split("\x1f")
+                    if len(fields) >= 2 and fields[0]:
+                        items.append((fields[0], fields[1],
+                                      fields[2].strip() if len(fields) > 2 else ""))
+                ok = True
+            except (OSError, ValueError):
+                pass
+        GLib.idle_add(self._show_news, items, ok)
+
+    def _show_news(self, items, ok):
+        self._clear(self.news)
+        since = last_featheros_update()
+        for when, subject, body in items:
+            try:
+                d = datetime.fromisoformat(when)
+                date = d.strftime("%d/%m/%Y %H:%M")
+                new = since and d.strftime("%Y-%m-%dT%H:%M") > since[:16]
+            except ValueError:
+                date, new = when, False
+            icon = "featheros" if new else "emblem-default"
+            self.news.add(self._row(icon, subject, ("novo · " if new else "") + date,
+                                    body))
+        if not items:
+            self._placeholder(self.news, "Sem novidades: o servidor de atualizações do "
+                              "FeatherOS não respondeu." if not ok else "Sem novidades.")
+        self.news.show_all()
+        return False
+
+    # --- history ---------------------------------------------------------------
+    def fill_history(self):
+        self._clear(self.history)
+        entries = read_history()
+        descs = describe(sorted({e[2] for e in entries if e[1] != "removed"}))
+        verbs = {"upgraded": "atualizado", "installed": "instalado", "removed": "removido"}
+        for when, action, name, versions in entries:
+            try:
+                date = datetime.fromisoformat(when).strftime("%d/%m/%Y %H:%M")
+            except ValueError:
+                date = when
+            versions = versions.replace("->", "→")
+            icon = {"upgraded": "system-software-update",
+                    "installed": "list-add", "removed": "list-remove"}[action]
+            self.history.add(self._row(icon, f"{name} {versions}",
+                                       f"{verbs[action]} · {date}",
+                                       descs.get(name, "")))
+        if not entries:
+            self._placeholder(self.history, "Nenhuma atualização registrada.")
+        self.history.show_all()
+
+    # --- installing ------------------------------------------------------------
+    def apply(self):
+        self.busy(True, "Atualizando… não desligue o computador.")
+        self.output.get_buffer().set_text("")
+        self.progress.show()
+        self.output_box.show()
+        GLib.timeout_add(120, self._pulse)
+        threading.Thread(target=self._apply_thread, daemon=True).start()
+
+    def _pulse(self):
+        if self.spinner.props.active:
+            self.progress.pulse()
+            return True
+        return False
+
+    def _append(self, text):
+        buf = self.output.get_buffer()
+        buf.insert(buf.get_end_iter(), text)
+        self.output.scroll_to_iter(buf.get_end_iter(), 0, False, 0, 0)
+        return False
+
+    def _apply_thread(self):
+        proc = subprocess.Popen(["sudo", "-n", HELPER, "apply"], stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, text=True, bufsize=1)
+        for line in proc.stdout:
+            GLib.idle_add(self._append, line)
+        GLib.idle_add(self._apply_done, proc.wait())
+
+    def _apply_done(self, code):
+        self.progress.hide()
+        self.fill_history()
+        if code == 0:
+            self.pending = []
+            self._clear(self.available)
+            self._placeholder(self.available, "O sistema está atualizado.")
+            self.available.show_all()
+            text = "Atualização concluída."
+        else:
+            text = "A atualização não foi concluída. Veja os detalhes abaixo."
+            self.output_box.set_expanded(True)
+        if self.needs_reboot():
+            text += " Reinicie o computador para usar o novo kernel."
+            self.reboot_btn.show()
+        self.busy(False, text)
+        return False
+
+
+class App(Gtk.Application):
+    def __init__(self):
+        super().__init__(application_id="org.featheros.Updates")
+
+    def do_activate(self):
+        win = self.get_active_window() or Updates(self)
+        win.present()
+
+
+if __name__ == "__main__":
+    App().run(None)

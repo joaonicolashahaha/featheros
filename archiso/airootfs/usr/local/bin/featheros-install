@@ -15,7 +15,11 @@ TITLE="Instalador do FeatherOS"
 TARGET=/mnt/featheros
 LOG=/var/log/featheros-install.log
 AUTO=${FEATHEROS_AUTO:-0}
-DEFAULT_SERVER=my-desktop.local
+# Default update server (the build machine), from the builder's site.conf
+# (copied into the ISO by scripts/container-build.sh).
+UPDATE_SERVER="" UPDATE_SERVER_IP_HINT=""
+[[ -r /etc/featheros/site.conf ]] && . /etc/featheros/site.conf
+DEFAULT_SERVER=$UPDATE_SERVER
 MIN_BYTES=$((8 * 1024 * 1024 * 1024))
 
 d() { dialog --stdout --backtitle "$TITLE" "$@"; }
@@ -61,8 +65,8 @@ ask() {
     AUTOLOGIN=no
     d --title "Entrada" --defaultno --yesno "Entrar automaticamente, sem pedir senha ao ligar?\n\n(Recomendado: Não)" 9 60 && AUTOLOGIN=yes
     local hint=""
-    getent hosts "$DEFAULT_SERVER" >/dev/null 2>&1 ||
-        hint="\n\nAviso: $DEFAULT_SERVER não respondeu agora. Se o desktop estiver desligado tudo bem; se não, use o IP (ex.: 192.168.1.10)."
+    [[ -z $DEFAULT_SERVER ]] || getent hosts "$DEFAULT_SERVER" >/dev/null 2>&1 ||
+        hint="\n\nAviso: $DEFAULT_SERVER não respondeu agora. Se o desktop estiver desligado tudo bem; se não, use o IP${UPDATE_SERVER_IP_HINT:+ (ex.: $UPDATE_SERVER_IP_HINT)}."
     SERVER=$(d --title "Atualizações" --inputbox "Servidor de atualizações do FeatherOS (nome ou IP do seu desktop):$hint" 13 64 "$DEFAULT_SERVER") || exit 0
 
     d --title "Confirmar" --defaultno --yesno "Disco: $DISK  (SERÁ APAGADO)\nUsuário: $USERNAME ($FULLNAME)\nComputador: $HOSTNAME\nEntrada automática: $AUTOLOGIN\nAtualizações: $SERVER\n\nInstalar agora?" 13 64 || exit 0

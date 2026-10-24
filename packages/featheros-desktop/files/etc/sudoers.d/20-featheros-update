@@ -1,0 +1,4 @@
+# The "Atualizações" app checks for and installs updates without asking for
+# a password: users in wheel may run exactly these two commands.
+# ("20-": sudo applies the last matching rule; this must sort after 10-wheel.)
+%wheel ALL=(root) NOPASSWD: /usr/lib/featheros/update-system check, /usr/lib/featheros/update-system apply

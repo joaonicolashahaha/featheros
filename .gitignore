@@ -11,3 +11,6 @@
 # Exported from signing/ by scripts/build-packages.sh.
 /packages/featheros-desktop/files/usr/share/featheros/keys/
 /packages/featheros-desktop/files/usr/share/featheros/remote/
+# Builder-specific settings (network names/addresses), see site.conf.example.
+/site.conf
+/archiso/airootfs/etc/featheros/

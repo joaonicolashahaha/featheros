@@ -1,0 +1,8 @@
+# Settings for your own FeatherOS build. Copy to site.conf (not committed:
+# it describes your network) and adjust; ./build.sh puts it in the ISO.
+#
+# Update server the installer suggests: the machine that runs
+# ./serve-updates.sh, by mDNS name (<hostname>.local) or IP address.
+UPDATE_SERVER=my-desktop.local
+# Shown as an example if that name does not resolve during install.
+UPDATE_SERVER_IP_HINT=192.168.1.10

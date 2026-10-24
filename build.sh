@@ -17,6 +17,13 @@ ENGINE=${ENGINE:-$(command -v podman >/dev/null && echo podman || echo docker)}
 IMAGE=${IMAGE:-docker.io/archlinux/archlinux:latest}
 
 mkdir -p out
+
+# Change notes for the "Atualizações" app, served with the packages.
+if [[ -d .git ]] && command -v git >/dev/null; then
+    mkdir -p repo/x86_64
+    git log -n 40 --format='%cI%x1f%s%x1f%b%x1e' |
+        sed '/^Co-Authored-By:/d' >repo/x86_64/featheros-news.txt
+fi
 # Inside a rootless container the host user is uid 0; with sudo it keeps its uid.
 if [[ -z $SUDO && $(id -u) != 0 ]]; then rootless=1 owner=(0 0); else rootless=0 owner=("$(id -u)" "$(id -g)"); fi
 # The pacman cache lives in a named volume so rebuilds don't re-download.

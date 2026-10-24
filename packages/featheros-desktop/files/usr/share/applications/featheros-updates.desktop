@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Atualizações
+Name[en]=Updates
+Comment=Ver e instalar atualizações do FeatherOS e do Arch Linux
+Exec=featheros-updates
+Icon=system-software-update
+Categories=System;Settings;
+Terminal=false

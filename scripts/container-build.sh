@@ -19,6 +19,15 @@ if [[ ${ROOTLESS:-0} == 1 ]]; then
     echo 'root:1:65535' > /etc/subgid
 fi
 
+# Builder-specific settings (default update server for the installer), kept
+# out of git: site.conf -> /etc/featheros/site.conf in the ISO.
+mkdir -p /src/archiso/airootfs/etc/featheros
+if [[ -f /src/site.conf ]]; then
+    cp /src/site.conf /src/archiso/airootfs/etc/featheros/site.conf
+else
+    rm -f /src/archiso/airootfs/etc/featheros/site.conf
+fi
+
 work=/tmp/featheros-work
 mkarchiso -v -w "$work" -o /src/out /src/archiso
 chown "${HOST_UID:-0}:${HOST_GID:-0}" /src/out/*.iso
