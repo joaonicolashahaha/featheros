@@ -1,3 +1,5 @@
+# "20-": sudo applies the LAST matching rule, so this must sort after
+# 10-wheel ("%wheel ALL=(ALL:ALL) ALL", password required).
 # Restart / shut down / suspend from the feather menu. Without polkit (not
 # installed: ~8 MB of RAM), logind refuses these to normal users, so users
 # in wheel may run exactly these commands without a password.
