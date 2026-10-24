@@ -1,0 +1,34 @@
+#!/bin/sh
+# Warm-up after login: read the dock apps' files into the page cache while
+# the disk is otherwise idle, so their first launch doesn't wait for the HDD.
+#
+# Measured on the laptop (5400 rpm HDD), launch until the window shows:
+#   Firefox 15.9 s cold / 3.8 s warm, Geany 3.0 / 0.8, Terminal 2.8 / 0.5,
+#   Files 2.2 / 0.5. About 360 MB is read.
+# Cached files are not "used" memory: the kernel drops them as soon as
+# anything needs the RAM. Started by /usr/lib/featheros/autostart.
+# Off: WARMUP=off in ~/.config/featheros/settings.
+. /usr/lib/featheros/common.sh
+
+[ "$WARMUP" = off ] && exit 0
+# Let the desktop finish starting first.
+sleep "${WARMUP_DELAY:-20}"
+# Only when there is plenty of free RAM (the laptop has ~2.7 GB at idle).
+avail=$(awk '/^MemAvailable/ { print int($2 / 1024) }' /proc/meminfo)
+[ "$avail" -gt 1500 ] || exit 0
+
+libs() { ldd "$1" 2>/dev/null | awk '/=> \// { print $3 }'; }
+
+{
+    for b in firefox xfce4-terminal pcmanfm geany mpv; do
+        command -v "$b"
+        libs "$(command -v "$b")"
+    done
+    find /usr/lib/firefox /usr/lib/geany /usr/share/geany -type f 2>/dev/null
+    libs /usr/lib/firefox/libxul.so
+    # Firefox profile (small files only; not the page cache of visited sites).
+    find "$HOME/.config/mozilla" "$HOME/.mozilla" -type f -size -20M 2>/dev/null
+} | sort -u |
+# Lowest disk priority: BFQ serves it only when nothing else wants the disk.
+ionice -c 3 nice -n 19 xargs -d '\n' cat >/dev/null 2>&1
+exit 0

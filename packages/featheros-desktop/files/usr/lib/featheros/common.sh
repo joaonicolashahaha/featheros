@@ -7,6 +7,7 @@ FEATHEROS_SHARE=/usr/share/featheros
 # Defaults, overridden by the user's settings file (KEY=value lines).
 MODE=light      # light | dark
 EFFECTS=on      # on | off  (picom compositor)
+WARMUP=on       # on | off  (read the dock apps into RAM after login)
 [ -r "$FEATHEROS_SETTINGS" ] && . "$FEATHEROS_SETTINGS"
 
 featheros_set() {  # featheros_set KEY VALUE

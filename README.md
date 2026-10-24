@@ -216,11 +216,44 @@ Details:
   a link copied. It plays in mpv at H.264 ≤ 720p, using far less CPU and RAM
   than the browser. In Firefox, YouTube also gets H.264, because VP9/AV1 are
   disabled in its defaults.
+- **Fast first launches:** about 20 s after login, FeatherOS reads the dock
+  apps (Firefox, Terminal, Files, Geany, mpv; about 360 MB) into RAM at the
+  lowest disk priority. Cached files are not "used" memory: the kernel drops
+  them when anything needs the RAM. To switch it off, set `WARMUP=off` in
+  `~/.config/featheros/settings`.
 - **Measuring:** `sudo featheros-mem` shows the real memory use per program
   (PSS), and `featheros-mem firefox` shows Firefox with all its tabs.
   `featheros-boottime` shows how long the last boot took.
 - **Firefox:** WebGL is off to save about 130 MB. If a site needs 3D, set
   `webgl.disabled` to `false` in `about:config`.
+
+### Installing more apps
+
+FeatherOS is Arch Linux underneath, so the whole Arch repository (about
+15 000 packages) is available. In a terminal:
+
+```sh
+pacman -Ss image viewer       # search by keyword
+sudo pacman -S ristretto      # install (asks for your password)
+sudo pacman -Rns ristretto    # remove, with its now-unneeded dependencies
+```
+
+Installed apps appear in Spotlight (Super+Space) right away, and the
+Atualizações app keeps them updated with everything else. Light choices
+that suit this laptop:
+
+| For | Light choice | Heavier alternative |
+|---|---|---|
+| Images | `ristretto` or `viewnior` | `eog` |
+| PDFs | Firefox (already set up) or `mupdf` | `evince` |
+| Office | `abiword`, `gnumeric` | `libreoffice-fresh` (works, but slow to start) |
+| Music | `mpv` (installed), `audacious` | `rhythmbox` |
+| Code | Geany, Neovim (installed) | `code` (VS Code OSS, ~400 MB RAM) |
+| Chat / Discord | the web version in Firefox | desktop apps (Electron: 300+ MB each) |
+
+The AUR (community build scripts) is not set up. Packages there are built
+on the laptop itself, which is slow on a Core 2 Duo; prefer the official
+repositories.
 
 ### Remote access
 
@@ -255,11 +288,26 @@ and one minute idle:
 | X start → desktop ready | 4.0 s | |
 | **Machine time, kernel → desktop** | **≈ 20 s** (+ firmware + GRUB 2 s) | < 30 s |
 
-Two fixes found by measuring on the laptop itself:
+App launch, until the window appears (5400 rpm HDD):
+
+| App | First launch (cold) | After the login warm-up |
+|---|---|---|
+| Firefox | 15.9 s | **3.3 s** |
+| Geany | 3.0 s | **0.8 s** |
+| Terminal | 2.8 s | **0.4 s** |
+| Files | 2.2 s | **0.5 s** |
+
+75–85% of a cold launch is waiting for the disk, which is why the warm-up
+helps so much. A SATA SSD would make every launch, and the boot, fast
+(the laptop's ICH9M controller does SATA II).
+
+Fixes found by measuring on the laptop itself:
 
 - **GLX was costing 4.4 s per boot.** Xorg loaded Mesa (with LLVM) from the
   HDD for the GLX extension. GLX is now off, which brought Xorg's startup
   from 5.2 s to 2.2 s. mpv and Firefox use EGL instead.
+- **The accessibility bus cost 27 MB.** The first GTK app started it, and it
+  stayed for the whole session; it's off now (`NO_AT_BRIDGE=1`).
 - **The USB adapter sometimes had no interface after a reboot.** iwd's own
   interface creation failed with this adapter. iwd now uses the kernel's
   interface for Realtek USB adapters.

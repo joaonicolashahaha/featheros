@@ -53,6 +53,7 @@ package() {
   chmod 755 "$pkgdir"/usr/bin/* "$pkgdir"/usr/lib/featheros/autostart \
     "$pkgdir"/usr/lib/featheros/wifi-prefer-usb \
     "$pkgdir"/usr/lib/featheros/update-system \
+    "$pkgdir"/usr/lib/featheros/warmup \
     "$pkgdir"/etc/skel/.xinitrc
   chmod 644 "$pkgdir"/etc/profile.d/*
   # sudo ignores rule files that are not exactly like this.

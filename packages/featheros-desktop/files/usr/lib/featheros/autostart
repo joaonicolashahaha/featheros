@@ -4,3 +4,6 @@
 
 [ "$EFFECTS" = on ] && featheros-effects on
 featheros-panels
+# Dock apps into the page cache while the disk is idle (first launches
+# without waiting for the HDD).
+/usr/lib/featheros/warmup >/dev/null 2>&1 &
