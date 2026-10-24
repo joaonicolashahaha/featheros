@@ -9,7 +9,7 @@ pkgname=featheros-desktop
 pkgver=0
 pkgrel=1
 pkgdesc='FeatherOS desktop: macOS-inspired Openbox session, themes and defaults'
-arch=(any)
+arch=(x86_64)
 url='https://github.com/'
 license=(GPL-3.0-or-later)
 # Everything the desktop uses. New dependencies added here reach installed
@@ -30,11 +30,20 @@ depends=(
   # Remote access (off by default): SSH + screenshots + mouse/keyboard
   openssh maim xdotool
 )
+# featheros-dockd (dockd/; not src/, which makepkg owns): the dock's "intelligent hide" helper.
+makedepends=(gcc libx11)
+options=(!debug)
+
 # Files under /etc: local edits are kept on update (new version -> .pacnew).
 backup=($(cd "${BASH_SOURCE[0]%/*}/files" 2>/dev/null && find etc -type f | sort))
 
+build() {
+  cc $CFLAGS -Wall -o featheros-dockd "$startdir/dockd/featheros-dockd.c" $LDFLAGS -lX11
+}
+
 package() {
   cp -a "$startdir/files/." "$pkgdir/"
+  install -Dm755 featheros-dockd "$pkgdir/usr/bin/featheros-dockd"
   chmod 755 "$pkgdir"/usr/bin/* "$pkgdir"/usr/lib/featheros/autostart \
     "$pkgdir"/etc/skel/.xinitrc
   chmod 644 "$pkgdir"/etc/profile.d/*

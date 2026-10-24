@@ -100,7 +100,12 @@ build_one() {
     # Auto-versioned packages only copy files: don't install their runtime
     # dependencies (Firefox, Xorg, ...) into the build container.
     local deps=--syncdeps
-    [[ $auto == yes ]] && deps=--nodeps
+    if [[ $auto == yes ]]; then
+        deps=--nodeps
+        # Still needs what it compiles with.
+        local mk; mk=$(bash -c "source '$dir/PKGBUILD' >/dev/null; echo \${makedepends[*]}")
+        [[ -n $mk ]] && pacman -S --noconfirm --needed $mk >/dev/null
+    fi
     su builder -c "cd $build && SRCDEST=/src/kernel/cache PKGDEST=$build/out \
         MAKEFLAGS=-j$(nproc) makepkg --noconfirm --cleanbuild $deps" </dev/null
     # Replace older builds of every package this PKGBUILD produces.

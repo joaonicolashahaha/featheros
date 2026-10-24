@@ -13,6 +13,7 @@ for b in /sys/class/power_supply/*; do
 done
 
 pkill -u "$(id -u)" -x tint2
+pkill -u "$(id -u)" -x featheros-dockd
 for p in bar dock; do
     conf="${XDG_CONFIG_HOME:-$HOME/.config}/tint2/$p.tint2rc"
     if [ ! -r "$conf" ]; then
@@ -26,3 +27,6 @@ for p in bar dock; do
     fi
     tint2 -c "$conf" >/dev/null 2>&1 &
 done
+
+# Dock "intelligent hide": visible unless a window overlaps it.
+featheros-dockd >/dev/null 2>&1 &
