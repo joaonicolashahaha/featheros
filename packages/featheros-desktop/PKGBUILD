@@ -33,11 +33,18 @@ depends=(
   usb_modeswitch
   # Wi-Fi regulatory database (Brazil: /etc/modprobe.d/featheros-wifi-regdom.conf)
   wireless-regdb
-  # The "Atualizações" app (GTK 3 from Python)
-  python-gobject
+  # The "Atualizações" and "Configurações" apps (GTK 3 from Python; cairo for
+  # Bem-estar's chart)
+  python-gobject python-cairo
+  # Configurações: displays, mouse/touchpad and keyboard live changes; Night
+  # Light and idle time (xtools/); Bluetooth (bluetoothd runs only while an
+  # adapter is plugged in)
+  xorg-xrandr xorg-xinput xorg-xset xorg-setxkbmap libxrandr libxss bluez
 )
 # featheros-dockd (dockd/; not src/, which makepkg owns): the dock's "intelligent hide" helper.
-makedepends=(gcc libx11)
+# xtools/: featheros-idle (idle time) and featheros-gamma (Night Light).
+# python: Configurações' modules are compiled to bytecode at build time.
+makedepends=(gcc libx11 libxext libxrandr libxss python)
 options=(!debug)
 
 # Files under /etc: local edits are kept on update (new version -> .pacnew).
@@ -45,16 +52,34 @@ backup=($(cd "${BASH_SOURCE[0]%/*}/files" 2>/dev/null && find etc -type f | sort
 
 build() {
   cc $CFLAGS -Wall -o featheros-dockd "$startdir/dockd/featheros-dockd.c" $LDFLAGS -lX11
+  cc $CFLAGS -Wall -o featheros-idle "$startdir/xtools/featheros-idle.c" $LDFLAGS \
+    -lX11 -lXext -lXss
+  cc $CFLAGS -Wall -o featheros-gamma "$startdir/xtools/featheros-gamma.c" $LDFLAGS \
+    -lX11 -lXrandr -lm
 }
 
 package() {
   cp -a "$startdir/files/." "$pkgdir/"
-  install -Dm755 featheros-dockd "$pkgdir/usr/bin/featheros-dockd"
+  install -Dm755 featheros-dockd featheros-idle featheros-gamma -t "$pkgdir/usr/bin/"
   chmod 755 "$pkgdir"/usr/bin/* "$pkgdir"/usr/lib/featheros/autostart \
     "$pkgdir"/usr/lib/featheros/wifi-prefer-usb \
     "$pkgdir"/usr/lib/featheros/update-system \
     "$pkgdir"/usr/lib/featheros/warmup \
+    "$pkgdir"/usr/lib/featheros/sessiond \
+    "$pkgdir"/usr/lib/featheros/settings-system \
     "$pkgdir"/etc/skel/.xinitrc
+  # Bytecode for Configurações (users can't write it under /usr): a faster
+  # start on the Core 2 Duo. makepkg sets SOURCE_DATE_EPOCH, so the .pyc files
+  # are hash-checked and stay valid whatever the files' dates.
+  python -m compileall -q -d /usr/lib/featheros/settings \
+    "$pkgdir/usr/lib/featheros/settings"
+  # bluetoothd: enabled, but only wanted by bluetooth.target, which udev
+  # starts when an adapter appears (nothing runs without one).
+  install -d "$pkgdir"/etc/systemd/system/bluetooth.target.wants
+  ln -s /usr/lib/systemd/system/bluetooth.service \
+    "$pkgdir"/etc/systemd/system/bluetooth.target.wants/bluetooth.service
+  ln -s /usr/lib/systemd/system/bluetooth.service \
+    "$pkgdir"/etc/systemd/system/dbus-org.bluez.service
   chmod 644 "$pkgdir"/etc/profile.d/*
   # sudo ignores rule files that are not exactly like this.
   chmod 750 "$pkgdir"/etc/sudoers.d

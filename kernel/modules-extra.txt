@@ -74,6 +74,19 @@ ccm
 gcm
 rfkill
 
+# --- Bluetooth (Configurações > Bluetooth): USB adapters, since the laptop has
+#     none built in. Nothing is loaded, and bluetoothd doesn't run, until one
+#     is plugged in.
+bluetooth
+btusb
+btrtl          # Realtek, Intel, Broadcom and MediaTek adapter firmware loaders
+btintel
+btbcm
+btmtk
+rfcomm         # headsets: call audio (HFP)
+hidp           # keyboards and mice (classic Bluetooth)
+uhid           # keyboards and mice (Bluetooth LE)
+
 # --- Virtual machines (QEMU/KVM, GNOME Boxes): disks, NICs, GPUs, audio, input
 virtio_pci
 virtio_blk

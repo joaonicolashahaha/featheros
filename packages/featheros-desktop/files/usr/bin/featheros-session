@@ -23,7 +23,11 @@ dbus-update-activation-environment --systemd DISPLAY XAUTHORITY \
 xdg-user-dirs-update
 featheros_xsettings
 xsettingsd -c "$FEATHEROS_CACHE/xsettingsd.conf" >/dev/null 2>&1 &
-hsetroot -cover "$FEATHEROS_SHARE/wallpapers/$MODE.jpg" >/dev/null
+# Choices made in Configurações (before the wallpaper: resolution first).
+featheros_displays
+featheros_screen_blank
+featheros_key_repeat
+featheros_wallpaper
 
 # Openbox runs the autostart once it manages the screen.
 exec openbox --startup /usr/lib/featheros/autostart

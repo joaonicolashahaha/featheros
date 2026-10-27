@@ -199,10 +199,10 @@ Details:
 | Alt + Tab | Switch windows |
 | Volume / brightness keys | Change volume / brightness |
 
-- **Feather menu** (top-left): about this computer, update system (install
-  from the live USB), light/dark appearance, effects on/off, remote access
-  on/off, log out, restart, shut down. Restart and shut down need no
-  password.
+- **Feather menu** (top-left): about this computer, settings
+  (Configurações, below), update system (install from the live USB),
+  light/dark appearance, effects on/off, remote access on/off, log out,
+  restart, shut down. Restart and shut down need no password.
 - **Dock:** stays visible while nothing covers it, and hides when a window
   overlaps it. Push the mouse to the bottom edge to bring it back over the
   window.
@@ -226,6 +226,59 @@ Details:
   `featheros-boottime` shows how long the last boot took.
 - **Firefox:** WebGL is off to save about 130 MB. If a site needs 3D, set
   `webgl.disabled` to `false` in `about:config`.
+
+### Configurações (settings)
+
+Feather menu → **Configurações**, or search for it. It works like GNOME
+Settings: a sidebar of panels, each a column of settings.
+
+![Configurações](docs/screenshots/settings.jpg)
+
+| Panel | What it does |
+|---|---|
+| Rede | Wi-Fi on/off, nearby networks (the password is asked in the app), saved and hidden networks, the cable, the IP address, gateway and DNS. Uses iwd, like the top bar's Wi-Fi menu. |
+| Bluetooth | Switch on, find, pair (codes are confirmed in the app), connect and forget devices. Needs a USB Bluetooth adapter: the laptop has none built in. |
+| Telas | Resolution, refresh rate, orientation, a second monitor (extend or mirror). Changes are tried for 15 s and kept only when confirmed. **Luz noturna** warms the colours, always or on a schedule. |
+| Energia | Battery, power mode (processor speed: performance, balanced, power saver), power button, lid, screen blanking, automatic suspend (not while music or a video plays). |
+| Aparência | Light or dark, wallpaper (also your own pictures), visual effects. |
+| Aplicativos | Installed apps with version and size; open or uninstall them. Default apps for links, e-mail, music, videos, pictures, PDFs, text and folders. |
+| Contas online | Google, Microsoft, GitHub and the Mozilla account, through Firefox (below). |
+| Bem-estar | Screen time per day and per week, a daily limit, reminders to move and to rest your eyes. |
+| Mouse e touchpad | Primary button, speed, acceleration, scroll direction, tap to click, typing protection, two-finger or edge scrolling, secondary click. |
+| Teclado | Layouts (ABNT2, US international, ...) and the shortcut to switch between them, key repeat, the list of keyboard shortcuts. |
+| Sistema | Language, time zone and automatic time, password and automatic login, remote access, the computer's name and hardware, updates. |
+
+`featheros-settings bluetooth` (or `rede`, `telas`, ...) opens a panel
+directly.
+
+How it stays light:
+
+- The app (Python and GTK 3, like Atualizações) only runs while its window is
+  open, and each panel is loaded the first time it is opened.
+- No settings daemon stays running. Each setting is kept where the system
+  already reads it: the X server's config for the keyboard layout, mice and
+  touchpads (`/etc/X11/xorg.conf.d/40-featheros-input.conf`, so they also
+  apply to a mouse plugged in later), logind for the power button and the
+  lid, and `~/.config/featheros/settings` and `~/.config/featheros/displays`
+  for the rest, applied at login.
+- One small loop, `/usr/lib/featheros/sessiond`, wakes once a minute for
+  screen time, the Bem-estar reminders, the Luz noturna schedule and
+  automatic suspend.
+- Bluetooth costs nothing without an adapter: the kernel modules load and
+  `bluetoothd` starts only when one is plugged in. Cheap Realtek and CSR USB
+  adapters work; Realtek's firmware is already installed.
+- System changes need no password, like updates: users in wheel may run
+  `/usr/lib/featheros/settings-system` through sudo, and it accepts only
+  fixed values. Uninstalling an app and changing your password still ask
+  for it.
+
+**Online accounts live in Firefox.** FeatherOS has no account service. GNOME
+Online Accounts would cost RAM and mostly serves apps FeatherOS doesn't ship.
+Sign in once in Firefox, and Gmail, Drive, Outlook and the rest open signed
+in. Contas online reads the Firefox profile, locally and read-only, to show
+where you are signed in. It opens Firefox to sign in, to manage or sign out of
+an account, and straight to each service (Gmail, Agenda, Drive, Outlook,
+OneDrive, ...). Nothing is sent anywhere.
 
 ### Installing more apps
 
@@ -343,6 +396,8 @@ Measured in the QEMU test VM. Per-component PSS needs root
 | picom | 1.9 MB | shadows and rounded corners; off = 0 |
 | iwd | 1.6 MB | Wi-Fi (wpa_supplicant + NetworkManager: more) |
 | xsettingsd | 0.9 MB | live light/dark switching of open apps |
+| sessiond | 0.7 MB | screen time, Bem-estar reminders, Luz noturna, automatic suspend (wakes once a minute) |
+| bluetoothd | 0 MB | starts only while a Bluetooth adapter is plugged in |
 | PipeWire | 0 MB | socket-activated: starts with the first sound (20 MB then) |
 | SSH server, display manager | 0 MB | off by default / none (tty login, then `startx`) |
 
@@ -354,6 +409,7 @@ Measured in the QEMU test VM. Per-component PSS needs root
 | Geany (1 file) | 57 MB | Lite XL measured 108 MB |
 | mpv, YouTube 720p H.264 | 160–190 MB | |
 | Firefox, claude.ai open | 1078 MB | 1196 MB with Arch defaults; ~600 MB with an empty tab |
+| Configurações | 52 MB | 59 MB after opening every panel; 0 once closed. Window in 0.3 s (0.8 s with empty caches, VM) |
 
 ### Sizes
 
@@ -372,7 +428,9 @@ archiso/                 archiso profile: package list, boot menus, live-only fi
   airootfs/              live session plumbing + the installer (featheros-install)
 packages/
   featheros-desktop/     FeatherOS itself: files/ mirrors /, dockd/ is the dock
-                         helper (C); PKGBUILD lists every app as a dependency
+                         helper (C), xtools/ the idle-time and Night Light
+                         helpers (C); PKGBUILD lists every app as a dependency.
+                         Configurações: files/usr/lib/featheros/settings/
   whitesur-*-theme/      WhiteSur GTK/icons/cursors (Apple logos removed)
 kernel/
   linux-featheros/       kernel PKGBUILD (from Arch linux-lts) + generated config
@@ -397,6 +455,7 @@ iwd crypto, virtio). Modules in `modules-exclude.txt` are dropped, then
 - every Realtek HDA codec. Since 6.17 the Realtek codec module is split per
   chip; the laptop's is an ALC272.
 - the Realtek USB Wi-Fi drivers
+- Bluetooth for USB adapters (`modules-extra.txt`)
 
 To change it, edit those files, bump `pkgrel` in
 `kernel/linux-featheros/PKGBUILD`, and run `./build.sh packages` to get a
@@ -439,6 +498,14 @@ used: the UI font is Inter.
   the FeatherOS kernel: add it to `kernel/modules-extra.txt` and rebuild.
 - **No sound.** Run `alsamixer` (F6 selects the card) and unmute Master and
   Speaker.
+- **Configurações says there is no Bluetooth adapter.** Check that `lsusb`
+  lists it and that `lsmod | grep btusb` shows the driver. Then check that
+  `rfkill` doesn't show it blocked and `systemctl status bluetooth` shows it
+  running. Some adapters need firmware from another `linux-firmware-*`
+  package; `journalctl -k | grep -i blue` names the missing file.
+- **A keyboard, mouse or touchpad setting got stuck.** Configurações writes
+  `/etc/X11/xorg.conf.d/40-featheros-input.conf`. Delete it and log out and
+  in to go back to the defaults.
 - **Updates can't reach the build machine.** Make sure `./serve-updates.sh`
   is running there. On the laptop, try
   `curl http://<hostname>.local:8080/x86_64/featheros.db -o /dev/null`. If

@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""Configurações: FeatherOS settings (network, Bluetooth, displays, power,
+appearance, apps, online accounts, wellbeing, mouse, keyboard, system).
+
+    featheros-settings [panel]      e.g. featheros-settings bluetooth
+
+The panels live in /usr/lib/featheros/settings (main.py).
+"""
+import sys
+
+sys.path.insert(0, "/usr/lib/featheros/settings")
+import main  # noqa: E402
+
+sys.exit(main.run(sys.argv[1:]))

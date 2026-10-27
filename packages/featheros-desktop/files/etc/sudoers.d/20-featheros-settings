@@ -1,0 +1,5 @@
+# Configurações (featheros-settings) changes system settings without asking
+# for a password: users in wheel may run its root helper. The helper accepts
+# only fixed values (see its header); "*" passes them through.
+# ("20-": sudo applies the last matching rule; this must sort after 10-wheel.)
+%wheel ALL=(root) NOPASSWD: /usr/lib/featheros/settings-system *

@@ -30,5 +30,5 @@ done
 featheros_xsettings
 pkill -HUP -u "$(id -u)" -x xsettingsd   # running GTK apps switch live
 openbox --reconfigure 2>/dev/null
-hsetroot -cover "$FEATHEROS_SHARE/wallpapers/$MODE.jpg" >/dev/null
+featheros_wallpaper
 featheros-panels

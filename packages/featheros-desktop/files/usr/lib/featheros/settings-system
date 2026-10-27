@@ -1,0 +1,205 @@
+#!/usr/bin/env bash
+# Root helper for Configurações (featheros-settings). Users in wheel may run
+# it through sudo without a password (/etc/sudoers.d/20-featheros-settings),
+# so every argument is checked against a fixed list or a strict pattern:
+# this script is the security boundary.
+#
+#   settings-system power-mode performance|balanced|power-saver|apply
+#   settings-system power-key poweroff|suspend|ignore
+#   settings-system lid suspend|poweroff|ignore
+#   settings-system input KEY=VALUE...   keyboard layout, mouse and touchpad
+#                                        (Xorg config: also applies to devices
+#                                        plugged in later; see input below)
+#   settings-system timezone Area/City
+#   settings-system ntp on|off
+#   settings-system hostname NAME
+#   settings-system language pt_BR|pt_PT|en_US|es_ES|fr_FR|de_DE|it_IT
+#   settings-system autologin on|off     for the user running sudo
+set -euo pipefail
+export LC_ALL=C
+
+die() { echo "settings-system: $*" >&2; exit 2; }
+
+# logind setting in FeatherOS's drop-in, then reload logind (it supports
+# reloading: Type=notify-reload).
+logind_set() {
+    local f=/etc/systemd/logind.conf.d/20-featheros.conf key
+    mkdir -p "${f%/*}"
+    [[ -f $f ]] || printf '# Written by Configurações (featheros-settings).\n[Login]\n' >"$f"
+    while (($#)); do
+        key=$1
+        if grep -q "^$key=" "$f"; then sed -i "s/^$key=.*/$key=$2/" "$f"
+        else echo "$key=$2" >>"$f"; fi
+        shift 2
+    done
+    systemctl reload systemd-logind.service
+}
+
+# --- input: one Xorg file for the keyboard layout, mice and touchpads ---------
+# The chosen values are kept in the file itself ("#@ KEY=VALUE" lines), so
+# each call only passes what changed. Xorg applies the file to every device,
+# also ones plugged in later; Configurações applies changes at once with
+# setxkbmap/xinput.
+INPUT_CONF=/etc/X11/xorg.conf.d/40-featheros-input.conf
+
+input_valid() {  # input_valid KEY VALUE
+    local num='^-?(0(\.[0-9]{1,3})?|1(\.0{1,3})?)$'
+    case $1 in
+        KB_LAYOUT)   [[ $2 =~ ^[a-z]{2,8}(,[a-z]{2,8}){0,3}$ ]] ;;
+        KB_VARIANT)  [[ $2 =~ ^[a-z0-9_-]{0,24}(,[a-z0-9_-]{0,24}){0,3}$ ]] ;;
+        KB_OPTIONS)  [[ $2 =~ ^([a-z0-9_]+:[a-z0-9_]+(,[a-z0-9_]+:[a-z0-9_]+){0,3})?$ ]] ;;
+        LEFT_HANDED|MOUSE_ACCEL|MOUSE_NATURAL|TP_ENABLED|TP_NATURAL|TP_TAP|TP_DWT)
+                     [[ $2 == on || $2 == off ]] ;;
+        MOUSE_SPEED|TP_SPEED) [[ $2 =~ $num ]] ;;
+        TP_SCROLL)   [[ $2 == twofinger || $2 == edge ]] ;;
+        TP_CLICK)    [[ $2 == buttonareas || $2 == clickfinger ]] ;;
+        *) return 1 ;;
+    esac
+}
+
+input() {
+    local -A v=()
+    local line kv key val
+    if [[ -f $INPUT_CONF ]]; then
+        while read -r line; do
+            kv=${line#\#@ }
+            key=${kv%%=*} val=${kv#*=}
+            input_valid "$key" "$val" && v[$key]=$val
+        done < <(grep '^#@ ' "$INPUT_CONF")
+    fi
+    for kv in "$@"; do
+        key=${kv%%=*} val=${kv#*=}
+        [[ $kv == *=* ]] && input_valid "$key" "$val" || die "invalid: $kv"
+        v[$key]=$val
+    done
+
+    local tmp; tmp=$(mktemp "$INPUT_CONF.XXXXXX")
+    {
+        echo "# Written by Configurações (featheros-settings): keyboard layout, mice and"
+        echo "# touchpads. Xorg applies it to every device, also ones plugged in later."
+        echo "# Delete this file to go back to the defaults."
+        for key in $(printf '%s\n' "${!v[@]}" | sort); do echo "#@ $key=${v[$key]}"; done
+        if [[ -n ${v[KB_LAYOUT]:-} ]]; then
+            echo
+            echo 'Section "InputClass"'
+            echo '    Identifier "featheros-keyboard"'
+            echo '    MatchIsKeyboard "on"'
+            echo "    Option \"XkbLayout\" \"${v[KB_LAYOUT]}\""
+            echo "    Option \"XkbVariant\" \"${v[KB_VARIANT]:-}\""
+            echo "    Option \"XkbOptions\" \"${v[KB_OPTIONS]:-}\""
+            echo 'EndSection'
+        fi
+        # Mice (and touchpads, unless the touchpad section says otherwise:
+        # later sections win).
+        echo
+        echo 'Section "InputClass"'
+        echo '    Identifier "featheros-pointer"'
+        echo '    MatchIsPointer "on"'
+        echo '    MatchDevicePath "/dev/input/event*"'
+        echo '    Driver "libinput"'
+        [[ -n ${v[LEFT_HANDED]:-} ]] && echo "    Option \"LeftHanded\" \"${v[LEFT_HANDED]}\""
+        [[ -n ${v[MOUSE_SPEED]:-} ]] && echo "    Option \"AccelSpeed\" \"${v[MOUSE_SPEED]}\""
+        case ${v[MOUSE_ACCEL]:-} in
+            on) echo '    Option "AccelProfile" "adaptive"' ;;
+            off) echo '    Option "AccelProfile" "flat"' ;;
+        esac
+        [[ -n ${v[MOUSE_NATURAL]:-} ]] && echo "    Option \"NaturalScrolling\" \"${v[MOUSE_NATURAL]}\""
+        echo 'EndSection'
+        echo
+        echo 'Section "InputClass"'
+        echo '    Identifier "featheros-touchpad"'
+        echo '    MatchIsTouchpad "on"'
+        echo '    MatchDevicePath "/dev/input/event*"'
+        echo '    Driver "libinput"'
+        echo '    Option "AccelProfile" "adaptive"'
+        echo "    Option \"Tapping\" \"${v[TP_TAP]:-on}\""
+        echo "    Option \"AccelSpeed\" \"${v[TP_SPEED]:-0}\""
+        echo "    Option \"NaturalScrolling\" \"${v[TP_NATURAL]:-off}\""
+        [[ -n ${v[TP_DWT]:-} ]] && echo "    Option \"DisableWhileTyping\" \"${v[TP_DWT]}\""
+        [[ -n ${v[TP_SCROLL]:-} ]] && echo "    Option \"ScrollMethod\" \"${v[TP_SCROLL]}\""
+        [[ -n ${v[TP_CLICK]:-} ]] && echo "    Option \"ClickMethod\" \"${v[TP_CLICK]}\""
+        [[ ${v[TP_ENABLED]:-on} == off ]] && echo '    Option "SendEventsMode" "disabled"'
+        echo 'EndSection'
+    } >"$tmp"
+    chmod 644 "$tmp"
+    mv "$tmp" "$INPUT_CONF"
+}
+
+case ${1:-} in
+power-mode)
+    mode=${2:-}
+    [[ $mode == apply ]] && mode=$(cat /etc/featheros/power-mode 2>/dev/null || echo balanced)
+    case $mode in
+        performance) gov=performance ;;
+        balanced)    gov=schedutil ;;
+        power-saver) gov=powersave ;;
+        *) die "invalid power mode: $mode" ;;
+    esac
+    for p in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do
+        if [[ -w $p ]]; then echo "$gov" >"$p"; fi
+    done
+    if [[ $2 != apply ]]; then
+        mkdir -p /etc/featheros
+        echo "$mode" >/etc/featheros/power-mode
+    fi
+    ;;
+power-key)
+    [[ ${2:-} =~ ^(poweroff|suspend|ignore)$ ]] || die "invalid: ${2:-}"
+    logind_set HandlePowerKey "$2"
+    ;;
+lid)
+    [[ ${2:-} =~ ^(suspend|poweroff|ignore)$ ]] || die "invalid: ${2:-}"
+    logind_set HandleLidSwitch "$2" HandleLidSwitchExternalPower "$2"
+    ;;
+input)
+    shift
+    input "$@"
+    ;;
+timezone)
+    tz=${2:-}
+    [[ $tz =~ ^[A-Z][A-Za-z_]+(/[A-Za-z0-9_+-]+){1,2}$ && $tz != *..* &&
+       -f /usr/share/zoneinfo/$tz ]] || die "invalid time zone: $tz"
+    timedatectl set-timezone "$tz"
+    ;;
+ntp)
+    case ${2:-} in
+        on) timedatectl set-ntp true ;;
+        off) timedatectl set-ntp false ;;
+        *) die "invalid: ${2:-}" ;;
+    esac
+    ;;
+hostname)
+    [[ ${2:-} =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]] || die "invalid name: ${2:-}"
+    hostnamectl set-hostname "$2"
+    ;;
+language)
+    case ${2:-} in
+        pt_BR|pt_PT|en_US|es_ES|fr_FR|de_DE|it_IT) loc=$2.UTF-8 ;;
+        *) die "invalid language: ${2:-}" ;;
+    esac
+    if ! grep -q "^$loc UTF-8" /etc/locale.gen; then
+        echo "$loc UTF-8" >>/etc/locale.gen
+        locale-gen >/dev/null
+    fi
+    echo "LANG=$loc" >/etc/locale.conf
+    ;;
+autologin)
+    user=${SUDO_USER:-}
+    [[ -n $user && $user != root ]] && id "$user" &>/dev/null || die "no user"
+    f=/etc/systemd/system/getty@tty1.service.d/autologin.conf
+    case ${2:-} in
+        on)
+            mkdir -p "${f%/*}"
+            printf '[Service]\nExecStart=\nExecStart=-/usr/bin/agetty --noreset --noclear --autologin %s - ${TERM}\n' \
+                "$user" >"$f"
+            ;;
+        off) rm -f "$f" ;;
+        *) die "invalid: ${2:-}" ;;
+    esac
+    systemctl daemon-reload
+    ;;
+*)
+    sed -n '7,17s/^# \{0,2\}//p' "$0" >&2
+    exit 2
+    ;;
+esac

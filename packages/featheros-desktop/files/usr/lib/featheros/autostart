@@ -4,6 +4,11 @@
 
 [ "$EFFECTS" = on ] && featheros-effects on
 featheros-panels
+# Power mode chosen in Configurações (the CPU governor needs root).
+[ -r /etc/featheros/power-mode ] &&
+    sudo -n /usr/lib/featheros/settings-system power-mode apply >/dev/null 2>&1
+# Screen time, Bem-estar reminders, Luz noturna, automatic suspend.
+/usr/lib/featheros/sessiond >/dev/null 2>&1 &
 # Dock apps into the page cache while the disk is idle (first launches
 # without waiting for the HDD).
 /usr/lib/featheros/warmup >/dev/null 2>&1 &

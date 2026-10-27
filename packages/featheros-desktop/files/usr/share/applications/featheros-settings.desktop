@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Configurações
+Name[en]=Settings
+Comment=Rede, Bluetooth, telas, energia, aparência, aplicativos e mais
+Keywords=configurações;preferências;ajustes;wi-fi;bluetooth;tela;energia;aparência;mouse;teclado;sistema;settings;
+Exec=featheros-settings
+Icon=preferences-system
+Categories=Settings;System;
+Terminal=false
+StartupNotify=false

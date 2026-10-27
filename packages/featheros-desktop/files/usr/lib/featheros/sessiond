@@ -1,0 +1,100 @@
+#!/bin/sh
+# Once a minute during the session (started by /usr/lib/featheros/autostart):
+#
+#   - screen time: the minutes with keyboard or mouse use, per day, in
+#     ~/.local/share/featheros/screen-time ("YYYY-MM-DD minutes" lines),
+#     shown in Configurações > Bem-estar
+#   - Bem-estar: the daily screen time limit and the break reminders
+#   - Luz noturna on its schedule
+#   - automatic suspend after SUSPEND_AFTER idle minutes, unless a sound is
+#     playing (music, a video)
+#
+# Settings are read again every minute, so changes made in Configurações
+# apply without a restart. A shell loop that sleeps between checks: about
+# 1 MB, nothing runs in between. Ends with the X session.
+. /usr/lib/featheros/common.sh
+
+mkdir -p "$FEATHEROS_CACHE"
+exec 9>"$FEATHEROS_CACHE/sessiond.lock"
+flock -n 9 || exit 0
+
+data=${XDG_DATA_HOME:-$HOME/.local/share}/featheros
+log=$data/screen-time
+mkdir -p "$data"
+
+used=0      # minutes of use since the last break (5 idle minutes in a row)
+eyes=0      # minutes of use since the last eye-break reminder
+idle_run=0  # idle minutes in a row
+warned=     # day the screen time limit was announced
+night=      # Luz noturna temperature applied
+slept=no    # suspended, and not used since (don't suspend again on waking)
+
+say() {
+    _sq=""
+    pgrep -u "$(id -u)" -x picom >/dev/null || _sq='window { border-radius: 0; }'
+    rofi -e "$1" -markup -theme "$FEATHEROS_SHARE/rofi/menu-$MODE.rasi" \
+        -theme-str "window { location: center; anchor: center; width: 460px; } $_sq" \
+        >/dev/null 2>&1 &
+}
+
+hm() {  # 135 -> "2 h 15 min"
+    if [ "$1" -ge 60 ]; then
+        if [ $(($1 % 60)) -eq 0 ]; then echo "$(($1 / 60)) h"
+        else echo "$(($1 / 60)) h $(($1 % 60)) min"; fi
+    else
+        echo "$1 min"
+    fi
+}
+
+# Something is playing sound (music, a film, a call): an ALSA playback
+# device is running.
+playing() { grep -qs '^state: RUNNING' /proc/asound/card*/pcm*p/sub*/status; }
+
+while :; do
+    . /usr/lib/featheros/common.sh
+    idle=$(featheros-idle) || exit 0
+    today=$(date +%F)
+    last=$(tail -n 1 "$log" 2>/dev/null)
+    case $last in
+        "$today "*) minutes=${last#* } ;;
+        *) minutes=0 ;;
+    esac
+
+    if [ "$idle" -lt 60000 ]; then
+        # Used during the last minute: add it to today's (last) line.
+        [ "$minutes" -gt 0 ] && sed -i '$d' "$log"
+        minutes=$((minutes + 1))
+        echo "$today $minutes" >>"$log"
+        used=$((used + 1)) eyes=$((eyes + 1)) idle_run=0 slept=no
+    else
+        idle_run=$((idle_run + 1))
+        [ "$idle_run" -ge 5 ] && used=0 eyes=0
+    fi
+
+    if [ "$SCREEN_LIMIT" -gt 0 ] && [ "$minutes" -ge "$SCREEN_LIMIT" ] &&
+       [ "$warned" != "$today" ]; then
+        warned=$today
+        say "<b>Limite de uso atingido</b>
+Você já usou o computador por $(hm "$minutes") hoje, o limite definido em Bem-estar."
+    elif [ "$BREAKS" = on ] && [ "$used" -ge "$BREAK_EVERY" ]; then
+        used=0
+        say "<b>Hora de uma pausa</b>
+Você está no computador há $(hm "$BREAK_EVERY"). Levante-se, alongue-se e ande um pouco."
+    elif [ "$EYE_BREAKS" = on ] && [ "$eyes" -ge 20 ]; then
+        eyes=0
+        say "<b>Descanse os olhos</b>
+Olhe para algo a uns 6 metros de distância por 20 segundos."
+    fi
+
+    temp=$(featheros_night_temp)
+    if [ "$temp" != "$night" ] && featheros-gamma "$temp"; then
+        night=$temp
+    fi
+
+    if [ "$SUSPEND_AFTER" -gt 0 ] && [ "$slept" = no ] &&
+       [ "$idle" -ge $((SUSPEND_AFTER * 60000)) ] && ! playing; then
+        slept=yes
+        sudo -n systemctl suspend
+    fi
+    sleep 60
+done

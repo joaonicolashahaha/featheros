@@ -4,10 +4,28 @@ FEATHEROS_SETTINGS="${XDG_CONFIG_HOME:-$HOME/.config}/featheros/settings"
 FEATHEROS_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/featheros"
 FEATHEROS_SHARE=/usr/share/featheros
 
-# Defaults, overridden by the user's settings file (KEY=value lines).
+# Defaults, overridden by the user's settings file (KEY=value lines; most
+# are set from Configurações, featheros-settings, which keeps the same
+# defaults in /usr/lib/featheros/settings/util.py).
 MODE=light      # light | dark
 EFFECTS=on      # on | off  (picom compositor)
 WARMUP=on       # on | off  (read the dock apps into RAM after login)
+WALLPAPER=      # image file; empty: the FeatherOS wallpaper of the current mode
+SCREEN_BLANK=   # minutes of inactivity before the screen blanks; 0: never;
+                # empty: the X server's default (10)
+SUSPEND_AFTER=0 # minutes of inactivity before suspending; 0: never
+KB_REPEAT=on    # key repeat on | off; KB_DELAY (ms) and KB_RATE (keys/s),
+KB_DELAY=       # empty: the X server's defaults
+KB_RATE=
+NIGHT_LIGHT=off       # Luz noturna: on | off
+NIGHT_SCHEDULE=times  # times (from NIGHT_FROM to NIGHT_TO) | always
+NIGHT_FROM=20:00
+NIGHT_TO=06:00
+NIGHT_TEMP=4000       # kelvin (6500: neutral)
+SCREEN_LIMIT=0  # Bem-estar: daily screen time limit in minutes; 0: none
+BREAKS=off      # reminder to move every BREAK_EVERY minutes of use
+BREAK_EVERY=60
+EYE_BREAKS=off  # reminder to look away every 20 minutes of use
 [ -r "$FEATHEROS_SETTINGS" ] && . "$FEATHEROS_SETTINGS"
 
 featheros_set() {  # featheros_set KEY VALUE
@@ -59,6 +77,64 @@ Xft/Hinting 1
 Xft/HintStyle "hintslight"
 Xft/RGBA "none"
 EOF
+}
+
+featheros_wallpaper() {
+    _w=$WALLPAPER
+    [ -n "$_w" ] && [ -r "$_w" ] || _w="$FEATHEROS_SHARE/wallpapers/$MODE.jpg"
+    hsetroot -cover "$_w" >/dev/null
+}
+
+# Resolution, refresh rate and orientation chosen in Configurações:
+# ~/.config/featheros/displays has "OUTPUT xrandr-arguments" lines; only
+# the monitors connected now are set.
+featheros_displays() {
+    _f="${XDG_CONFIG_HOME:-$HOME/.config}/featheros/displays"
+    [ -r "$_f" ] || return 0
+    _on=" $(xrandr --query | awk '$2 == "connected" { printf "%s ", $1 }')"
+    _args=
+    while read -r _o _rest; do
+        case $_on in *" $_o "*) _args="$_args --output $_o $_rest" ;; esac
+    done <"$_f"
+    # shellcheck disable=SC2086  # one argument per word
+    [ -z "$_args" ] || xrandr $_args
+}
+
+featheros_screen_blank() {
+    case $SCREEN_BLANK in
+        '') ;;
+        0) xset s off -dpms ;;
+        *) _s=$((SCREEN_BLANK * 60))
+           xset s "$_s" "$_s" +dpms dpms "$_s" "$_s" "$_s" ;;
+    esac
+}
+
+featheros_key_repeat() {
+    if [ "$KB_REPEAT" = off ]; then
+        xset r off
+    elif [ -n "$KB_DELAY" ] && [ -n "$KB_RATE" ]; then
+        xset r on r rate "$KB_DELAY" "$KB_RATE"
+    fi
+}
+
+# Luz noturna: the colour temperature for now, for featheros-gamma.
+featheros_night_temp() {
+    if [ "$NIGHT_LIGHT" != on ]; then
+        echo 6500
+        return
+    fi
+    if [ "$NIGHT_SCHEDULE" = always ]; then
+        echo "$NIGHT_TEMP"
+        return
+    fi
+    # HHMM numbers ("test" reads 0600 as 600; $(( )) would read octal).
+    _now=$(date +%H%M)
+    _from=$(echo "$NIGHT_FROM" | tr -d :) _to=$(echo "$NIGHT_TO" | tr -d :)
+    if [ "$_from" -le "$_to" ]; then       # e.g. 13:00-18:00
+        [ "$_now" -ge "$_from" ] && [ "$_now" -lt "$_to" ]
+    else                                   # over midnight, e.g. 20:00-06:00
+        [ "$_now" -ge "$_from" ] || [ "$_now" -lt "$_to" ]
+    fi && echo "$NIGHT_TEMP" || echo 6500
 }
 
 # First sound card with a "Master" control (the laptop's HDA, or the VM's).
